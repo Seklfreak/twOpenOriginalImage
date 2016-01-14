@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.0.1
+// @version         0.1.0.2
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @description     Open images in original size on Twitter.
@@ -67,7 +67,7 @@ switch ( LANGUAGE ) {
     case 'ja' :
         var TITLE_PREFIX = '画像: ',
             TWEET_LINK_TEXT = '元ツイート',
-            BUTTON_TEXT = 'Original',
+            BUTTON_TEXT = '原寸画像',
             BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = '全ての画像を同一ページで開く',
             BUTTON_HELP_DISPLAY_ONE_PER_PAGE = '画像を個別に開く';
         break;
@@ -107,27 +107,32 @@ var add_open_button = ( function () {
         button = d.createElement( 'input' ),
         img_template = d.createElement( 'img' ),
         link_template = d.createElement( 'a' ),
-        p_template = d.createElement( 'p' ),
+        link_container_template = d.createElement( 'div' ),
         button_style = button.style,
         img_style = img_template.style,
-        opened_name_map = {};
+        link_style = link_template.style,
+        link_container_style = link_container_template.style,
+        opened_name_map = {},
+        is_mac = ( 0 <= w.navigator.platform.toLowerCase().indexOf( 'mac' ) ),
+        alt_text = ( is_mac ) ? '[option]' : '[Alt]';
     
     button.type =  'button';
-    button_style.width = '70px';
+    button_style.padding = '2px 6px';
+    button_style.color = 'gray';
     if ( DISPLAY_ALL_IN_ONE_PAGE ) {
-        button.title = '[Click]: ' + BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE + ' / [Alt]+[Click]: ' + BUTTON_HELP_DISPLAY_ONE_PER_PAGE;
+        button.title = '[Click]: ' + BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE + ' / ' + alt_text + '+[Click]: ' + BUTTON_HELP_DISPLAY_ONE_PER_PAGE;
     }
     else {
-        button.title = '[Click]: ' + BUTTON_HELP_DISPLAY_ONE_PER_PAGE + ' / [Alt]+[Click]: ' + BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE;
+        button.title = '[Click]: ' + BUTTON_HELP_DISPLAY_ONE_PER_PAGE + ' / ' + alt_text + '+[Click]: ' + BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE;
     }
     button.value = BUTTON_TEXT;
-    
     button_container_template.className = 'ProfileTweet-action twOpenOriginalImageButton';
     button_container_template.appendChild( button );
     
     img_style.maxWidth = '100%';
     img_style.height = 'auto';
     link_template.target = '_blank';
+    link_container_style.margin = '4px 0';
     
     function open_page( img_urls, tweet_url, title ) {
         var is_complete = false,
@@ -173,12 +178,12 @@ var add_open_button = ( function () {
             
             if ( tweet_url ) {
                 var link = child_document.importNode( link_template, true ),
-                    p = child_document.importNode( p_template, true );
+                    link_container = child_document.importNode( link_container_template, true );
                 
                 link.href = tweet_url;
                 link.appendChild( child_document.createTextNode( TWEET_LINK_TEXT ) );
-                p.appendChild( link );
-                body.appendChild( p );
+                link_container.appendChild( link );
+                body.appendChild( link_container );
             }
             if ( title ) {
                 title_node.removeChild( title_node.firstChild );
@@ -187,12 +192,12 @@ var add_open_button = ( function () {
             img_urls.forEach( function ( img_url ) {
                 var img = child_document.importNode( img_template, true ),
                     link = child_document.importNode( link_template, true ),
-                    p = child_document.importNode( p_template, true );
+                    link_container = child_document.importNode( link_container_template, true );
                 
                 img.src = link.href = img_url;
                 link.appendChild( img );
-                p.appendChild( link );
-                body.appendChild( p );
+                link_container.appendChild( link );
+                body.appendChild( link_container );
             } );
             
             child_window.focus();
@@ -227,22 +232,23 @@ var add_open_button = ( function () {
             return;
         }
         
-        var photo_container = tweet.querySelector( '.AdaptiveMedia-photoContainer, .AdaptiveMedia-container' ),
+        var img_list = tweet.querySelectorAll( '.AdaptiveMedia-photoContainer img' ),
             action_list = tweet.querySelector( '.ProfileTweet-actionList' );
         
-        if ( ( ! photo_container ) || ( ! action_list ) ) {
+        if ( ( img_list.length <= 0 ) || ( ! action_list ) ) {
             return;
         }
         
         var img_urls = [];
         
-        [].forEach.call( photo_container.querySelectorAll( 'img' ), function ( img ) {
+        Array.apply( null, img_list ).forEach( function ( img ) {
             if ( img.src ) {
                 var img_url = img.src.replace( /:\w*$/, '' ) + ':orig';
                 
                 img_urls.push( img_url );
             }
         } );
+        
         if ( img_urls.length <= 0 ) {
             return false;
         }
@@ -303,7 +309,7 @@ new MutationObserver( function ( records ) {
     }
     
     records.forEach( function ( record ) {
-        [].forEach.call( record.addedNodes, function ( addedNode ) {
+        Array.apply( null, record.addedNodes ).forEach( function ( addedNode ) {
             check_tweets( addedNode );
         } );
     } );

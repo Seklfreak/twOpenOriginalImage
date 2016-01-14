@@ -17,7 +17,7 @@ twOpenOriginalImage
 
 ■ 使い方
 ---
-Web 版公式 Twitter 上で、画像つきツイートには [Original] というボタンが挿入される。  
+Web 版公式 Twitter 上で、画像つきツイートには [原寸表示]（[Original]）というボタンが挿入される。  
 これをクリックすると、オリジナルの画像（URLが'～:orig'のもの）が別タブ上に開く。  
 
 
