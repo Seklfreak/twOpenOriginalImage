@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title class="i18n">OPTIONS</title>
+<link rel="stylesheet" type="text/css" href="../css/options.css"  />
+<script type="text/javascript" src="../js/jquery.min.js"></script>
+<script type="text/javascript" src="../js/options.js"></script>
+</head>
+
+<body>
+
+<h1><a href="http://furyu.hatenablog.com/" class="i18n" target="_blank">OPTIONS</a></h1>
+
+<div class="main">
+
+  <form id="form_opts">
+    <h2 class="i18n">DEFAULT_ACTION_ON_CLICK_EVENT</h2>
+    <div class="opt radio" id="DISPLAY_ALL_IN_ONE_PAGE">
+      <p><input type="radio" value="1" name="DISPLAY_ALL_IN_ONE_PAGE" id="DISPLAY_ALL_IN_ONE_PAGE_1" /><label for="DISPLAY_METHOD_BY_DEFAULT_1" class="i18n">DISPLAY_ALL_IN_ONE_PAGE_DESCRIPTION</label></p>
+      <p><input type="radio" value="0" name="DISPLAY_ALL_IN_ONE_PAGE" id="DISPLAY_ALL_IN_ONE_PAGE_0" /><label for="DISPLAY_METHOD_BY_DEFAULT_0" class="i18n">DISPLAY_ONE_PER_PAGE_DESCRIPTION</label></p>
+    <!-- /.select --></div>
+    
+    <h2 class="i18n">BUTTON_TEXT_HEADER</h2>
+    <div class="opt str" id="BUTTON_TEXT">
+      <span class="current text"></span>=&gt;
+      <input type="text" value="BUTTON_TEXT" name="BUTTON_TEXT" class="i18n text" />
+      <input type="button" value="SET" name="SET" class="i18n button" />
+    <!-- /.set --></div>
+    
+  </form>
+  <form id="form_command"><input type="button" value="DEFAULT" name="DEFAULT" class="i18n button" /></form>
+
+<!-- /.main --></div>
+
+</body>
+</html>
