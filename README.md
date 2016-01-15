@@ -19,8 +19,8 @@ Google Chrome、あるいは Opera＋[Download Chrome Extension](https://addons.
 ### ユーザースクリプト版（Greasemonkey / Tampermonkey）
 Firefox＋[Greasemonkey](https://addons.mozilla.org/ja/firefox/addon/greasemonkey/)、Google Chrome＋[Tampermonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=ja)、あるいは Opera＋[Tampermonkey](https://addons.opera.com/ja/extensions/details/tampermonkey-beta/?display=en)の環境で、  
 
-> [twOpenOriginalImage.user.js](https://github.com/furyutei//twDisplayVicinity_Chrome/raw/master/src/js/twOpenOriginalImage.user.js)  
-
+> [twOpenOriginalImage.user.js](https://github.com/furyutei/twOpenOriginalImage/raw/master/src/js/twOpenOriginalImage.user.js)  
+                                
 をクリックし、指示に従ってインストール。  
 
 
