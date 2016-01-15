@@ -1,38 +1,47 @@
 {
-  "ext_title": {
-    "message": "Twitter 原寸びゅー"
-  , "description": "The title of the extension."
+  "ext_title" : {
+    "message" : "Twitter 原寸びゅー"
+  , "description" : "The title of the extension."
   }
-, "ext_short_name": {
-    "message": "TVOI"
-  , "description": "The short version of the extension's name."
+, "ext_short_name" : {
+    "message" : "TVOI"
+  , "description" : "The short version of the extension's name."
   }
-, "ext_description": {
-    "message": "Twitterの画像を原寸で開く"
-  , "description": "The description of the extension."
+, "ext_description" : {
+    "message" : "Twitterの画像を原寸で開く"
+  , "description" : "The description of the extension."
   }
 , "OPTIONS" : {
-    "message": "Twitter 原寸びゅー"
+    "message" : "Twitter 原寸びゅー"
   }
 , "SET" : {
-    "message": "設定"
+    "message" : "設定"
   }
 , "DEFAULT" : {
-    "message": "デフォルトに戻す"
+    "message" : "デフォルトに戻す"
   }
-, "DEFAULT_ACTION_ON_CLICK_EVENT" :{
-    "message": "クリック時のデフォルト動作（※[Alt]押下時は逆の動作）"
+, "ENABLED" : {
+    "message" : "有効"
   }
-, "DISPLAY_ALL_IN_ONE_PAGE_DESCRIPTION": {
-    "message": "全ての画像を同一ページで開く"
+, "DISABLED" : {
+    "message" : "無効"
   }
-, "DISPLAY_ONE_PER_PAGE_DESCRIPTION": {
-    "message": "画像を個別に開く"
+, "DEFAULT_ACTION_ON_CLICK_EVENT" : {
+    "message" : "クリック時のデフォルト動作（※[Alt]押下時は逆の動作）"
   }
-, "BUTTON_TEXT_HEADER": {
-    "message": "画像を開くボタンの文字列"
+, "DISPLAY_ALL_IN_ONE_PAGE_DESCRIPTION" : {
+    "message" : "全ての画像を同一ページで開く"
   }
-, "BUTTON_TEXT": {
-    "message": "原寸画像"
+, "DISPLAY_ONE_PER_PAGE_DESCRIPTION" : {
+    "message" : "画像を個別に開く"
+  }
+, "BUTTON_TEXT_HEADER" : {
+    "message" : "画像を開くボタンの文字列"
+  }
+, "BUTTON_TEXT" : {
+    "message" : "原寸画像"
+  }
+, "DOWNLOAD_HELPER_IS_VALID_HEADER" : {
+    "message" : "画像ダウンロードヘルパー"
   }
 }

@@ -3,6 +3,7 @@
 $().ready( function () {
     var RADIO_KV_LIST = [
             { key : 'DISPLAY_ALL_IN_ONE_PAGE', val : true }
+        ,   { key : 'DOWNLOAD_HELPER_SCRIPT_IS_VALID', val : true }
         ],
         INT_KV_LIST = [
             //{ key : 'WAIT_AFTER_OPENPAGE', val : 500, min : 0, max : null }

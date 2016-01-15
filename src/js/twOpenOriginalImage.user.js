@@ -45,7 +45,7 @@ var SCRIPT_NAME = 'twOpenOriginalImage';
 if ( ( w !== w.parent ) || ( w[SCRIPT_NAME + '_touched'] ) ) {
     return;
 }
-w[SCRIPT_NAME + '_touched'] = true;
+w[ SCRIPT_NAME + '_touched' ] = true;
 
 
 // ■ パラメータ
@@ -70,17 +70,17 @@ var LANGUAGE = ( function () {
 
 switch ( LANGUAGE ) {
     case 'ja' :
-        OPTIONS.TITLE_PREFIX = '画像: ',
-        OPTIONS.TWEET_LINK_TEXT = '元ツイート',
-        OPTIONS.BUTTON_TEXT = '原寸画像',
-        OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = '全ての画像を同一ページで開く',
+        OPTIONS.TITLE_PREFIX = '画像: ';
+        OPTIONS.TWEET_LINK_TEXT = '元ツイート';
+        OPTIONS.BUTTON_TEXT = '原寸画像';
+        OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = '全ての画像を同一ページで開く';
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = '画像を個別に開く';
         break;
     default:
-        OPTIONS.TITLE_PREFIX = 'IMG: ',
-        OPTIONS.TWEET_LINK_TEXT = 'Tweet',
-        OPTIONS.BUTTON_TEXT = 'Original',
-        OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = 'Display all in one page',
+        OPTIONS.TITLE_PREFIX = 'IMG: ';
+        OPTIONS.TWEET_LINK_TEXT = 'Tweet';
+        OPTIONS.BUTTON_TEXT = 'Original';
+        OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = 'Display all in one page';
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = 'Display one image per page';
         break;
 }

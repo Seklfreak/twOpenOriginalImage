@@ -9,7 +9,9 @@ chrome.runtime.onMessage.addListener( function ( message, sender, sendResponse )
     
     switch ( type ) {
         case 'GET_OPTIONS':
-            var names = message.names;
+            var names = message.names,
+                namespace = message.namespace;
+            
             response = {};
             
             if ( typeof name_list == 'string' ) {
@@ -18,11 +20,10 @@ chrome.runtime.onMessage.addListener( function ( message, sender, sendResponse )
             
             Array.apply( null, names ).forEach( function( name ) {
                 name = String( name );
-console.log( name, localStorage[ name ] );
-                response[ name ] = localStorage[ name ];
+                response[ name ] = localStorage[ ( ( namespace ) ? ( String( namespace ) + '_' ) : '' ) + name ];
             } );
-            
             break;
+        
         default:
             break;
     }

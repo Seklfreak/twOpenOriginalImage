@@ -2,7 +2,7 @@
     "manifest_version" : 2
 ,   "name" : "__MSG_ext_title__"
 ,   "short_name" : "__MSG_ext_short_name__"
-,   "version" : "0.1.1.0"
+,   "version" : "0.1.2.0"
 ,   "description" : "__MSG_ext_description__"
 ,   "default_locale" : "ja"
 ,   "icons" : {
@@ -12,13 +12,18 @@
     }
 ,   "content_scripts" : [
         {
-            "matches" : [ "http://twitter.com/*", "https://twitter.com/*" ]
+            "matches" : [ "http://twitter.com/*", "https://twitter.com/*", "https://pbs.twimg.com/media/*" ]
         ,   "js" : [ "js/init.js" ]
         ,   "run_at" : "document_start"
         }
     ,   {
             "matches" : [ "http://twitter.com/*", "https://twitter.com/*" ]
         ,   "js" : [ "js/twOpenOriginalImage.user.js" ]
+        ,   "run_at" : "document_end"
+        }
+    ,   {
+            "matches" : [ "https://pbs.twimg.com/media/*" ]
+        ,   "js" : [ "js/twImageDownloadHelper.user.js" ]
         ,   "run_at" : "document_end"
         }
     ]

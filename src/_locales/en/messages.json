@@ -1,38 +1,47 @@
 {
-  "ext_title": {
-    "message": "Twitter View Original Images",
-    "description": "The title of the extension."
+  "ext_title" : {
+    "message" : "Twitter View Original Images",
+    "description" : "The title of the extension."
   }
-, "ext_short_name": {
-    "message": "TVOI"
-  , "description": "The short version of the extension's name."
+, "ext_short_name" : {
+    "message" : "TVOI"
+  , "description" : "The short version of the extension's name."
   }
-, "ext_description": {
-    "message": "Open images in original size on Twitter.",
-    "description": "The description of the extension."
+, "ext_description" : {
+    "message" : "Open images in original size on Twitter.",
+    "description" : "The description of the extension."
   }
 , "OPTIONS" : {
-    "message": "Twitter View Original Images"
+    "message" : "Twitter View Original Images"
   }
 , "SET" : {
-    "message": "set"
+    "message" : "set"
   }
 , "DEFAULT" : {
-    "message": "Default"
+    "message" : "Default"
   }
-, "DEFAULT_ACTION_ON_CLICK_EVENT" :{
-    "message": "Default action on click (another action is performed on alt and click)"
+, "ENABLED" : {
+    "message" : "Enabled"
   }
-, "DISPLAY_ALL_IN_ONE_PAGE_DESCRIPTION": {
-    "message": "Display all in one page"
+, "DISABLED" : {
+    "message" : "Disabled"
   }
-, "DISPLAY_ONE_PER_PAGE_DESCRIPTION": {
-    "message": "Display one image per page"
+, "DEFAULT_ACTION_ON_CLICK_EVENT" : {
+    "message" : "Default action on click (another action is performed on alt and click)"
   }
-, "BUTTON_TEXT_HEADER": {
-    "message": "Button Text"
+, "DISPLAY_ALL_IN_ONE_PAGE_DESCRIPTION" : {
+    "message" : "Display all in one page"
   }
-, "BUTTON_TEXT": {
-    "message": "Original"
+, "DISPLAY_ONE_PER_PAGE_DESCRIPTION" : {
+    "message" : "Display one image per page"
+  }
+, "BUTTON_TEXT_HEADER" : {
+    "message" : "Button Text"
+  }
+, "BUTTON_TEXT" : {
+    "message" : "Original"
+  }
+, "DOWNLOAD_HELPER_IS_VALID_HEADER" : {
+    "message" : "Helper to download images"
   }
 }
