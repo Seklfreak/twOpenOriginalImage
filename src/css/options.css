@@ -93,6 +93,8 @@ input.short_text {
 }
 
 input.button {
+    display: inline-block;
+    margin-right: 12px;
     font-weight: bolder;
     cursor: pointer;
     border: solid 1px #7b8d42;

@@ -36,15 +36,28 @@ $().ready( function () {
     } );
     
     
+    function get_bool( value ) {
+        if ( value === undefined ) {
+            return null;
+        }
+        if ( ( value === '0' ) || ( value === 0 ) || ( value === false ) || ( value === 'false' ) ) {
+            return false;
+        }
+        if ( ( value === '1' ) || ( value === 1 ) || ( value === true ) || ( value === 'true' ) ) {
+            return true;
+        }
+        return null;
+    }  // end of get_bool()
+    
+    
     function set_radio_evt( kv ) {
         function check_svalue( kv, svalue ) {
-            if ( ( svalue === '0' ) || ( svalue === 0 ) || ( svalue === false ) || ( svalue === 'false' ) ) {
-                return '0';
+            var bool_value = get_bool( svalue );
+            
+            if ( bool_value === null ) {
+                return check_svalue( kv, kv.val );
             }
-            if ( ( svalue === '1' ) || ( svalue === 1 ) || ( svalue === true ) || ( svalue === 'true') ) {
-                return '1';
-            }
-            return check_svalue( kv, kv.val );
+            return ( bool_value ) ? '1' : '0';
         }
         
         var key = kv.key,
@@ -61,7 +74,7 @@ $().ready( function () {
             }
         } );
         
-        jq_inputs.change( function () {
+        jq_inputs.unbind( 'change' ).change( function () {
             var jq_input = $( this );
             
             localStorage[ key ] = check_svalue( kv, jq_input.val() );
@@ -93,14 +106,13 @@ $().ready( function () {
         jq_current.text( svalue );
         jq_input.val( svalue );
         
-        jq_target.find( 'input:button' ).click( function () {
+        jq_target.find( 'input:button' ).unbind( 'click' ).click( function () {
             var svalue = check_svalue( kv, jq_input.val() );
             
             localStorage[ key ] = svalue;
             jq_current.text( svalue );
             jq_input.val( svalue );
         } );
-        
     } // end of set_int_evt()
     
     
@@ -127,15 +139,38 @@ $().ready( function () {
         jq_current.text( svalue );
         jq_input.val( svalue );
         
-        jq_target.find( 'input:button' ).click( function () {
+        jq_target.find( 'input:button' ).unbind( 'click' ).click( function () {
             var svalue = check_svalue( kv, jq_input.val() );
             
             localStorage[ key ] = svalue;
             jq_current.text( svalue );
             jq_input.val( svalue );
         } );
-        
     } // end of set_str_evt()
+    
+    
+    function set_operation_evt() {
+        var jq_operation = $( 'input[name="OPERATION"]' ),
+            operation = get_bool( localStorage[ 'OPERATION' ] ),
+            operation = ( operation === null ) ? true : operation; // デフォルトは true (動作中)
+        
+        function set_operation( next_operation ) {
+            var button_text = ( next_operation ) ? ( chrome.i18n.getMessage( 'STOP' ) ) : ( chrome.i18n.getMessage( 'START' ) ),
+                icon_path = ( next_operation) ? ( '../img/icon_48.png' ) : ( '../img/icon_48-gray.png' );
+            
+            jq_operation.val( button_text );
+            chrome.browserAction.setIcon( { path : icon_path } );
+            
+            localStorage[ 'OPERATION' ] = next_operation;
+            operation = next_operation;
+        }
+        
+        jq_operation.unbind( 'click' ).click( function( event ) {
+            set_operation( ! operation );
+        } );
+        
+        set_operation( operation );
+    } // end of set_operation_evt()
     
     
     function set_all_evt() {
@@ -150,10 +185,13 @@ $().ready( function () {
         STR_KV_LIST.forEach( function( str_kv ) {
             set_str_evt( str_kv );
         } );
+        
+        set_operation_evt();
     }   //  end of set_all_evt()
     
     
     set_all_evt();
+    
     
     $( 'input[name="DEFAULT"]' ).click( function () {
         localStorage.clear();

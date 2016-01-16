@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.1.0
+// @version         0.1.2.1
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @description     Open images in original size on Twitter.
@@ -53,6 +53,7 @@ var OPTIONS = {
     SHOW_IN_DETAIL_PAGE : true // true: 詳細ページで動作
 ,   SHOW_IN_TIMELINE : true // true: タイムラインで動作
 ,   DISPLAY_ALL_IN_ONE_PAGE : true // true: [Click] 全ての画像を同一ページで開く / [Alt]+[Click] 画像を個別に開く、false: 左記の逆の動作
+,   OPERATION : true // true: 動作中、false: 停止中
 ,   WAIT_AFTER_OPENPAGE : 500 // Firefox でページを開いた後、画像を挿入するまでのタイムラグ(ms)
     // TODO: Firefox(Greasemonkey) で window.open() した後 document を書きかえるまでにウェイトをおかないとうまく行かない
 }
@@ -96,6 +97,9 @@ function initialize( user_options ) {
         }
     }
     
+    if ( ! OPTIONS.OPERATION ) {
+        return;
+    }
     
     var escape_html = ( function () {
         var escape_map = {
