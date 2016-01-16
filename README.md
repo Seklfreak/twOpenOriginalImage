@@ -5,6 +5,9 @@ Twitter 原寸びゅー (twOpenOriginalImage)
 - Copyright (c) 2016 風柳(furyu)  
 - 対象ブラウザ： Google Chrome、Firefox、Opera
 
+Web 版公式 Twitter 上の画像を、原寸（URLが '～:orig' のもの）で開くボタンを付けるスクリプト。  
+画像のダウンロード支援スクリプト（ダウンロードされる拡張子を '～.jpg-orig' 等から、'～-orig.jpg' のように変換）もあり。  
+
 
 ■ インストール方法 
 ---
@@ -13,7 +16,8 @@ Google Chrome、あるいは Opera＋[Download Chrome Extension](https://addons.
 
 > [Twitter 原寸びゅー](https://chrome.google.com/webstore/detail/twitter-%E5%8E%9F%E5%AF%B8%E3%81%B3%E3%82%85%E3%83%BC/bkpaljhmpehdbjkoahohlhkhlleaicel)
 
-より拡張機能を追加する。
+より拡張機能を追加する。  
+※ 拡張機能版は Twitter 画像ダウンロードヘルパーの機能を含む。  
 
 
 ### ユーザースクリプト版（Greasemonkey / Tampermonkey）
@@ -50,3 +54,8 @@ Web 版公式 Twitter 上で、画像つきツイートには [原寸表示]（[
 - アイデアを拝借、元のソースコードを参照しつつ、基本的にはいちから作成（なのでオリジナルでは発生しない不具合もあるはず）。  
 - ユーザースクリプト版には、オプション設定機能はなし。必要な場合、インストール後に手動でソース上のパラメータ（SHOW_IN_DETAIL_PAGE, SHOW_IN_TIMELINE, DISPLAY_ALL_IN_ONE_PAGE）変更（true ⇔ false）。  
 - 画像を個別のタブではなく、一つのタブでまとめて開く（DISPLAY_ALL_IN_ONE_PAGE = true 時・[Alt]＋クリックで個別のタブで開く）。  
+
+
+■ 関連記事
+---
+- [Twitter 原寸ビュー：Twitterの原寸画像を開くGoogle Chrome拡張機能＆ユーザースクリプト公開 - 風柳メモ](http://furyu.hatenablog.com/entry/20160116/1452871567)  
