@@ -17,7 +17,6 @@ Google Chrome、あるいは Opera＋[Download Chrome Extension](https://addons.
 > [Twitter 原寸びゅー](https://chrome.google.com/webstore/detail/twitter-%E5%8E%9F%E5%AF%B8%E3%81%B3%E3%82%85%E3%83%BC/bkpaljhmpehdbjkoahohlhkhlleaicel)
 
 より拡張機能を追加する。  
-※ 拡張機能版は Twitter 画像ダウンロードヘルパーの機能を含む。  
 
 
 ### ユーザースクリプト版（Greasemonkey / Tampermonkey）
@@ -27,12 +26,7 @@ Firefox＋[Greasemonkey](https://addons.mozilla.org/ja/firefox/addon/greasemonke
                                 
 をクリックし、指示に従ってインストール。  
 
-
-必要であれば、  
-
-> [Twitter 画像ダウンロードヘルパー(twImageDownloadHelper.user)](https://github.com/furyutei/twOpenOriginalImage/raw/master/src/js/twImageDownloadHelper.user.js)  
-
-も同様にインストール。  
+※ 0.1.3.0 以降は、ダウンロードヘルパー機能も原寸ビューに集約済み。これより前に画像ダウンロードヘルパーをインストールしていた場合、当該スクリプト（twImageDownloadHelper.user）は削除しておくこと。  
 
 
 ■ 使い方
@@ -40,7 +34,7 @@ Firefox＋[Greasemonkey](https://addons.mozilla.org/ja/firefox/addon/greasemonke
 Web 版公式 Twitter 上で、画像つきツイートには [原寸表示]（[Original]）というボタンが挿入される。  
 これをクリックすると、オリジナルの画像（URLが'～:orig'のもの）が別タブ上に開く。  
 
-画像ダウンロードヘルパーをインストールした場合には、画像を単体で開いた際に、[ダウンロード]（[Download]）ボタンが表示され、これをクリックすると当該画像がダウンロードされる（このとき、…….jpg:orig などは、……-orig.jpg に自動的に変換される）。  
+画像ダウンロードヘルパーが有効な場合は、[ダウンロード]（[Download]）ボタンが表示され、これをクリックすると当該画像がダウンロードされる（このとき、…….jpg:orig などは、……-orig.jpg に自動的に変換される）。  
 
 
 ■ オリジナル ( hogas ([@hogextend](https://twitter.com/hogextend/) ) 氏作成 )
@@ -52,7 +46,7 @@ Web 版公式 Twitter 上で、画像つきツイートには [原寸表示]（[
 ■ オリジナルとの主な違い
 ---
 - アイデアを拝借、元のソースコードを参照しつつ、基本的にはいちから作成（なのでオリジナルでは発生しない不具合もあるはず）。  
-- ユーザースクリプト版には、オプション設定機能はなし。必要な場合、インストール後に手動でソース上のパラメータ（SHOW_IN_DETAIL_PAGE, SHOW_IN_TIMELINE, DISPLAY_ALL_IN_ONE_PAGE）変更（true ⇔ false）。  
+- ユーザースクリプト版には、オプション設定機能はなし。必要な場合、インストール後に手動でソース上のパラメータ（SHOW_IN_DETAIL_PAGE, SHOW_IN_TIMELINE, DISPLAY_ALL_IN_ONE_PAGE, DOWNLOAD_HELPER_SCRIPT_IS_VALID）を変更すること（true ⇔ false）。  
 - 画像を個別のタブではなく、一つのタブでまとめて開く（DISPLAY_ALL_IN_ONE_PAGE = true 時・[Alt]＋クリックで個別のタブで開く）。  
 
 
