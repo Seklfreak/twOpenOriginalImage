@@ -2,9 +2,10 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.2.1
+// @version         0.1.3.0
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
+// @include         https://pbs.twimg.com/media/*
 // @description     Open images in original size on Twitter.
 // ==/UserScript==
 /*
@@ -42,7 +43,7 @@ THE SOFTWARE.
 
 var SCRIPT_NAME = 'twOpenOriginalImage';
 
-if ( ( w !== w.parent ) || ( w[SCRIPT_NAME + '_touched'] ) ) {
+if ( w[SCRIPT_NAME + '_touched'] ) {
     return;
 }
 w[ SCRIPT_NAME + '_touched' ] = true;
@@ -53,6 +54,7 @@ var OPTIONS = {
     SHOW_IN_DETAIL_PAGE : true // true: 詳細ページで動作
 ,   SHOW_IN_TIMELINE : true // true: タイムラインで動作
 ,   DISPLAY_ALL_IN_ONE_PAGE : true // true: [Click] 全ての画像を同一ページで開く / [Alt]+[Click] 画像を個別に開く、false: 左記の逆の動作
+,   DOWNLOAD_HELPER_SCRIPT_IS_VALID : true // true: ダウンロードヘルパー機能有効
 ,   OPERATION : true // true: 動作中、false: 停止中
 ,   WAIT_AFTER_OPENPAGE : 500 // Firefox でページを開いた後、画像を挿入するまでのタイムラグ(ms)
     // TODO: Firefox(Greasemonkey) で window.open() した後 document を書きかえるまでにウェイトをおかないとうまく行かない
@@ -76,6 +78,7 @@ switch ( LANGUAGE ) {
         OPTIONS.BUTTON_TEXT = '原寸画像';
         OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = '全ての画像を同一ページで開く';
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = '画像を個別に開く';
+        OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = 'ダウンロード';
         break;
     default:
         OPTIONS.TITLE_PREFIX = 'IMG: ';
@@ -83,8 +86,86 @@ switch ( LANGUAGE ) {
         OPTIONS.BUTTON_TEXT = 'Original';
         OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = 'Display all in one page';
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = 'Display one image per page';
+        OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = 'Download';
         break;
 }
+
+
+var create_download_link = ( function () {
+    var link_template = d.createElement( 'a' ),
+        link_style = link_template.style;
+    
+    link_style.display = 'inline-block';
+    link_style.fontWeight = 'normal';
+    link_style.fontSize = '12px';
+    link_style.color = 'gray';
+    link_style.background = '#fff';
+    link_style.textDecoration = 'none';
+    link_style.margin = '0';
+    link_style.padding = '4px 8px';
+    link_style.border = 'solid 2px #e1e8ed';
+    link_style.borderRadius = '3px';
+    
+    function create_download_link( img_url, doc ) {
+        if ( ! doc ) {
+            doc = d;
+        }
+        
+        var link = ( doc === d ) ? link_template.cloneNode( true ) : doc.importNode( link_template, true ),
+            link_style = link.style;
+        
+        link.addEventListener( 'mouseover', function ( event ) {
+            link_style.borderColor = 'red';
+        } );
+        
+        link.addEventListener( 'mouseout', function ( event ) {
+            link_style.borderColor = '#e1e8ed';
+        } );
+        
+        link.appendChild( doc.createTextNode( OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT ) );
+        
+        if ( img_url ) {
+            var filename = img_url.replace( /^.+\/([^\/.]+)\.(\w+):(\w+)$/, '$1-$3.$2' );
+            
+            link.href = img_url;
+            link.download = filename;
+        }
+        return link;
+    }
+    
+    return create_download_link;
+} )(); // end of create_download_link()
+
+
+function initialize_download_helper() {
+    if ( ! ( w.location.href.match( /^https?:\/\/pbs\.twimg\.com\/media\// ) ) ) {
+        return false;
+    }
+    
+    if ( ! OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID ) {
+        return true;
+    }
+    
+    var img_url = w.location.href,
+        link = create_download_link( img_url );
+    
+    if ( w.name == SCRIPT_NAME + '_download_frame' ) {
+        // 本スクリプトによりダウンロード用 IFRAME 経由で開いた場合
+        d.documentElement.appendChild( link );
+        link.click(); // ダウンロード開始
+        return true;
+    }
+    
+    // 通常の window(top) として開いた場合、もしくは本スクリプトにより window.open() で開いた場合
+    var link_container = d.createElement( 'div' ),
+        link_container_style = link_container.style;
+    
+    link_container_style.margin = '2px 0 1px 0';
+    link_container.appendChild( link );
+    d.body.insertBefore( link_container, d.body.firstChild );
+    
+    return true;
+} // end of initialize_download_helper()
 
 
 function initialize( user_options ) {
@@ -98,6 +179,14 @@ function initialize( user_options ) {
     }
     
     if ( ! OPTIONS.OPERATION ) {
+        return;
+    }
+    
+    if ( initialize_download_helper() !== false ) {
+        return;
+    }
+    
+    if ( w !== parent ) {
         return;
     }
     
@@ -156,20 +245,25 @@ function initialize( user_options ) {
         var header_template = d.createElement( 'h1' ),
             button_container_template = d.createElement( 'div' ),
             button = d.createElement( 'input' ),
-            img_template = d.createElement( 'img' ),
             link_template = d.createElement( 'a' ),
-            link_container_template = d.createElement( 'div' ),
+            img_template = d.createElement( 'img' ),
+            img_link_container_template = d.createElement( 'div' ),
+            download_link_container_template = d.createElement( 'div' ),
+            download_frame_template = d.createElement( 'iframe' ),
             header_style = header_template.style,
             button_style = button.style,
-            img_style = img_template.style,
             link_style = link_template.style,
-            link_container_style = link_container_template.style,
+            img_style = img_template.style,
+            img_link_container_style = img_link_container_template.style,
+            download_link_container_style = download_link_container_template.style,
+            download_frame_style = download_frame_template.style,
             button_container_classname = SCRIPT_NAME + 'Button',
             opened_name_map = {},
             is_mac = ( 0 <= w.navigator.platform.toLowerCase().indexOf( 'mac' ) ),
             alt_text = ( is_mac ) ? '[option]' : '[Alt]';
         
         header_style.fontSize = '16px';
+        header_style.margin = '0 0 8px';
         
         button.type =  'button';
         button_style.padding = '2px 6px';
@@ -184,12 +278,20 @@ function initialize( user_options ) {
         button_container_template.className = 'ProfileTweet-action ' + button_container_classname;
         button_container_template.appendChild( button );
         
-        img_style.maxWidth = '100%';
-        img_style.height = 'auto';
         link_template.target = '_blank';
         link_style.textDecoration = 'none';
         link_style.color = '#66757f';
-        link_container_style.margin = '4px 0';
+        
+        img_style.maxWidth = '100%';
+        img_style.height = 'auto';
+        img_link_container_style.margin = '0 0 8px 0';
+        
+        download_link_container_style.margin = '0 0 1px 0';
+        
+        download_frame_template.name = SCRIPT_NAME + '_download_frame';
+        download_frame_style.width = '0';
+        download_frame_style.height = '0';
+        download_frame_style.visibility = 'hidden';
         
         function open_page( img_urls, tweet_url, title ) {
             var is_complete = false,
@@ -251,12 +353,37 @@ function initialize( user_options ) {
                 img_urls.forEach( function ( img_url ) {
                     var img = child_document.importNode( img_template, true ),
                         link = child_document.importNode( link_template, true ),
-                        link_container = child_document.importNode( link_container_template, true );
+                        img_link_container = child_document.importNode( img_link_container_template, true );
                     
+                    if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID ) {
+                        var download_link = create_download_link( img_url, child_document ),
+                            download_link_container = child_document.importNode( download_link_container_template, true );
+                        
+                        download_link.href = img_url;
+                        
+                        download_link.addEventListener( 'click', function ( event ) {
+                            event.stopPropagation();
+                            event.preventDefault();
+                            
+                            var old_iframe = child_document.querySelector( 'iframe[name="' + SCRIPT_NAME + '_download_frame' + '"]' ),
+                                iframe = child_document.importNode( download_frame_template, true );
+                            
+                            if ( old_iframe ) {
+                                child_document.documentElement.removeChild( old_iframe );
+                            }
+                            iframe.src = img_url;
+                            child_document.documentElement.appendChild( iframe );
+                            
+                            return false;
+                        }, false );
+                        
+                        download_link_container.appendChild( download_link );
+                        body.appendChild( download_link_container );
+                    }
                     img.src = link.href = img_url;
                     link.appendChild( img );
-                    link_container.appendChild( link );
-                    body.appendChild( link_container );
+                    img_link_container.appendChild( link );
+                    body.appendChild( img_link_container );
                 } );
                 
                 child_window.focus();
@@ -275,7 +402,7 @@ function initialize( user_options ) {
                 //    page_onload();
                 //}, false );
                 
-                setTimeout( function() {
+                setTimeout( function () {
                     page_onload();
                 }, OPTIONS.WAIT_AFTER_OPENPAGE );
             }
