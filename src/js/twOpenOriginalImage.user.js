@@ -2,13 +2,16 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.3.0
+// @version         0.1.3.1
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
 // @description     Open images in original size on Twitter.
 // ==/UserScript==
 /*
+[furyutei/twOpenOriginalImage](https://github.com/furyutei/twOpenOriginalImage)
+[Twitter 原寸ビュー：Twitterの原寸画像を開くGoogle Chrome拡張機能＆ユーザースクリプト公開 - 風柳メモ](http://furyu.hatenablog.com/entry/20160116/1452871567)
+
 ※オリジナル： hogas (@hogextend) 氏作成
   [hogashi/twitterOpenOriginalImage](https://github.com/hogashi/twitterOpenOriginalImage)
   [GoogleChrome拡張機能「twitter画像原寸ボタン」ver. 2.0公開 - hogashi.*](http://hogashi.hatenablog.com/entry/2016/01/01/234632)
@@ -58,7 +61,9 @@ var OPTIONS = {
 ,   OPERATION : true // true: 動作中、false: 停止中
 ,   WAIT_AFTER_OPENPAGE : 500 // Firefox でページを開いた後、画像を挿入するまでのタイムラグ(ms)
     // TODO: Firefox(Greasemonkey) で window.open() した後 document を書きかえるまでにウェイトをおかないとうまく行かない
-}
+,   KEYCODE_DISPLAY_IMAGES : 118 // 画像を開くときのキー(118=[v])
+,   HELP_KEYCHAR_DISPLAY_IMAGES : 'v'
+};
 
 
 // 共通変数
@@ -79,6 +84,7 @@ switch ( LANGUAGE ) {
         OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = '全ての画像を同一ページで開く';
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = '画像を個別に開く';
         OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = 'ダウンロード';
+        OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = '画像を別ページに開く';
         break;
     default:
         OPTIONS.TITLE_PREFIX = 'IMG: ';
@@ -87,6 +93,7 @@ switch ( LANGUAGE ) {
         OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = 'Display all in one page';
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = 'Display one image per page';
         OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = 'Download';
+        OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = 'Display images on another page';
         break;
 }
 
@@ -475,24 +482,59 @@ function initialize( user_options ) {
     
     function check_tweets( node ) {
         if ( ( ! node ) || ( node.nodeType != 1 ) ) {
-            return;
+            return false;
         }
         
         var tweet_list = to_array( node.querySelectorAll( 'div.js-stream-tweet, div.tweet' ) );
         
-        if ( node.tagName == 'DIV' && (' ' + node.className + ' ').match( /(?: js-stream-tweet | tweet )/ ) ) {
+        if ( node.tagName == 'DIV' && ( ' ' + node.className + ' ' ).match( /(?: js-stream-tweet | tweet )/ ) ) {
             tweet_list.push( node );
         }
         
         tweet_list.forEach( function ( tweet ) {
             add_open_button( tweet );
         } );
+        
+        if ( tweet_list.length <= 0 ) {
+            return false;
+        }
+        return true;
     } // end of check_tweets()
     
     
-    function main() {
+    function check_help_dialog( node ) {
+        if ( ( ! node ) || ( node.nodeType != 1 ) ) {
+            return false;
+        }
+        var help_dialog = ( node.getAttribute( 'id' ) == 'keyboard-shortcut-dialog' ) ? node : node.querySelector( 'keyboard-shortcut-dialog' );
+        if ( ( ! help_dialog ) || ( help_dialog.querySelector( 'tr.' + SCRIPT_NAME + '_key_help' ) ) ) {
+            return false;
+        }
         
-        // 新規に挿入されるツイートの監視
+        var modal_table_tbody = help_dialog.querySelector( 'table.modal-table tbody' ),
+            tr_template = modal_table_tbody.querySelectorAll( 'tr' )[0],
+            tr = tr_template.cloneNode( true ),
+            shortcut_key = tr.querySelector( '.shortcut .sc-key' ),
+            shortcut_label = tr.querySelector( '.shortcut-label' );
+        
+        tr.classList.add( SCRIPT_NAME + '_key_help' );
+        
+        while ( shortcut_key.firstChild ) {
+            shortcut_key.removeChild( shortcut_key.firstChild );
+        }
+        while ( shortcut_label.firstChild ) {
+            shortcut_label.removeChild( shortcut_label.firstChild );
+        }
+        shortcut_key.appendChild( d.createTextNode( OPTIONS.HELP_KEYCHAR_DISPLAY_IMAGES ) );
+        shortcut_label.appendChild( d.createTextNode( OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES ) );
+        
+        modal_table_tbody.appendChild( tr );
+        
+        return true;
+    } // end of check_help_dialog()
+    
+    
+    function start_inserted_node_observer() {
         new MutationObserver( function ( records ) {
             if ( ! is_valid_url() ) { // ※ History API によりページ遷移無しで移動する場合もあるので毎回チェック
                 return;
@@ -500,16 +542,81 @@ function initialize( user_options ) {
             
             records.forEach( function ( record ) {
                 to_array( record.addedNodes ).forEach( function ( addedNode ) {
-                    check_tweets( addedNode );
+                    if ( check_tweets( addedNode ) ) {
+                        return;
+                    }
+                    if ( check_help_dialog( addedNode ) ) {
+                        return;
+                    }
                 } );
             } );
         } ).observe( d.body, { childList : true, subtree : true } );
         
         
+    } // end of start_inserted_node_observer()
+    
+    
+    function view_images_on_keypress( event ) {
+        function get_button( target_tweet ) {
+            return ( target_tweet ) ? target_tweet.querySelector( '.' + SCRIPT_NAME + 'Button input[type="button"]' ) : null;
+        } // end of get_button()
+        
+        var target_tweet = d.querySelector( '.selected-stream-item div.js-stream-tweet, .selected-stream-item div.tweet' ),
+            button = get_button( target_tweet );
+        
+        if ( ( ! target_tweet ) || ( ! button ) ) {
+            target_tweet = d.querySelector( '.permalink-tweet' );
+            button = get_button( target_tweet );
+        }
+        if ( ( ! target_tweet ) || ( ! button ) ) {
+            return;
+        }
+        
+        event.stopPropagation();
+        event.preventDefault();
+        
+        button.click();
+        
+        return false;
+    } // end of view_images_on_keypress()
+    
+    
+    function start_key_observer() {
+        d.addEventListener( 'keypress', function ( event ) {
+            var active_element = d.activeElement;
+            
+            if ( 
+                ( ( active_element.getAttribute( 'name' ) == 'tweet' ) && ( active_element.getAttribute( 'contenteditable' ) == 'true' ) ) ||
+                ( active_element.tagName == 'TEXTAREA' ) ||
+                ( ( active_element.tagName == 'INPUT' ) && ( active_element.getAttribute( 'type' ).toUpperCase() == 'TEXT' ) )
+            ) {
+                return;
+            }
+            
+            var key_code = event.which;
+            
+            switch ( key_code ) {
+                case OPTIONS.KEYCODE_DISPLAY_IMAGES :
+                    return view_images_on_keypress( event );
+                    break;
+                default :
+                    break;
+            }
+        }, false );
+    } // end of start_key_observer()
+    
+    
+    function main() {
+        // 新規に挿入されるツイートの監視開始
+        start_inserted_node_observer();
+        
         // 最初に表示されているすべてのツイートをチェック
         if ( is_valid_url() ) {
             check_tweets( d.body );
         }
+        
+        // キー入力の監視開始
+        start_key_observer();
         
     } // end of main()
     
