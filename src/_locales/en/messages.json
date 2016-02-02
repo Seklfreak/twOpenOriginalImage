@@ -50,4 +50,10 @@
 ,   "DOWNLOAD_HELPER_IS_VALID_HEADER" : {
         "message" : "Helper to download images"
     }
+,   "DOWNLOAD_ORIGINAL_IMAGE" : {
+        "message" : "Download original image"
+    }
+,   "UNDER_SUSPENSION" : {
+        "message" : "Under suspension"
+    }
 }

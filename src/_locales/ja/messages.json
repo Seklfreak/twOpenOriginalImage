@@ -50,4 +50,10 @@
 ,   "DOWNLOAD_HELPER_IS_VALID_HEADER" : {
         "message" : "画像ダウンロードヘルパー"
     }
+,   "DOWNLOAD_ORIGINAL_IMAGE" : {
+        "message" : "原寸画像を保存"
+    }
+,   "UNDER_SUSPENSION" : {
+        "message" : "停止中"
+    }
 }

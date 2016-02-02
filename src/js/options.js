@@ -50,6 +50,17 @@ $().ready( function () {
     }  // end of get_bool()
     
     
+    function reset_context_menu( callback ) {
+        chrome.runtime.sendMessage( {
+            type : 'RESET_CONTEXT_MENU'
+        }, function ( response ) {
+            if ( typeof callback == 'function' ) {
+                callback( response );
+            }
+        } );
+    } // end of reset_context_menu()
+    
+    
     function set_radio_evt( kv ) {
         function check_svalue( kv, svalue ) {
             var bool_value = get_bool( svalue );
@@ -65,19 +76,28 @@ $().ready( function () {
             jq_target = $( '#' + key ),
             jq_inputs = jq_target.find( 'input:radio' );
         
-        jq_inputs.each( function () {
+        jq_inputs.unbind( 'change' ).each( function () {
             var jq_input = $( this ),
-                val=jq_input.val();
+                val = jq_input.val();
             
             if ( val === svalue ) {
-                jq_input.attr( 'checked', 'checked' );
+                //jq_input.attr( 'checked', 'checked' );
+                jq_input.prop( 'checked', 'checked' );
             }
-        } );
-        
-        jq_inputs.unbind( 'change' ).change( function () {
+            else {
+                //jq_input.attr( 'checked', false );
+                jq_input.prop( 'checked', false );
+            }
+            // ※ .attr() で変更した場合、ラジオボタンが書き換わらない場合がある(手動変更後に[デフォルトに戻す]を行った場合等)ので、.prop() を使用すること。
+            //   参考：[jQueryでチェックボックスの全チェック／外しをしようとしてハマッたこと、attr()とprop()の違いは罠レベル | Ultraひみちゅぶろぐ](http://ultrah.zura.org/?p=4450)
+        } ).change( function () {
             var jq_input = $( this );
             
             localStorage[ key ] = check_svalue( kv, jq_input.val() );
+            
+            if ( key == 'DOWNLOAD_HELPER_SCRIPT_IS_VALID' ) {
+                reset_context_menu();
+            }
         } );
     } // end of set_radio_evt()
     
@@ -167,6 +187,7 @@ $().ready( function () {
         
         jq_operation.unbind( 'click' ).click( function( event ) {
             set_operation( ! operation );
+            reset_context_menu();
         } );
         
         set_operation( operation );
@@ -187,6 +208,8 @@ $().ready( function () {
         } );
         
         set_operation_evt();
+        
+        reset_context_menu();
     }   //  end of set_all_evt()
     
     
@@ -196,6 +219,7 @@ $().ready( function () {
     $( 'input[name="DEFAULT"]' ).click( function () {
         localStorage.clear();
         set_all_evt();
+        //location.reload();
     } );
 
 } );
