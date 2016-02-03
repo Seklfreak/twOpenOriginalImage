@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.3.1
+// @version         0.1.3.2
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -10,7 +10,7 @@
 // ==/UserScript==
 /*
 [furyutei/twOpenOriginalImage](https://github.com/furyutei/twOpenOriginalImage)
-[Twitter 原寸ビュー：Twitterの原寸画像を開くGoogle Chrome拡張機能＆ユーザースクリプト公開 - 風柳メモ](http://furyu.hatenablog.com/entry/20160116/1452871567)
+[Twitter 原寸びゅー：Twitterの原寸画像を開くGoogle Chrome拡張機能＆ユーザースクリプト公開 - 風柳メモ](http://furyu.hatenablog.com/entry/20160116/1452871567)
 
 ※オリジナル： hogas (@hogextend) 氏作成
   [hogashi/twitterOpenOriginalImage](https://github.com/hogashi/twitterOpenOriginalImage)
@@ -565,6 +565,14 @@ function initialize( user_options ) {
             button = get_button( target_tweet );
         
         if ( ( ! target_tweet ) || ( ! button ) ) {
+            var gallery = d.querySelector( '.Gallery' );
+            
+            if ( gallery && w.getComputedStyle( gallery ).display != 'none' ) {
+                target_tweet = gallery.querySelector( 'div.js-stream-tweet, div.tweet' );
+                button = get_button( target_tweet );
+            }
+        }
+        if ( ( ! target_tweet ) || ( ! button ) ) {
             target_tweet = d.querySelector( '.permalink-tweet' );
             button = get_button( target_tweet );
         }
@@ -606,6 +614,42 @@ function initialize( user_options ) {
     } // end of start_key_observer()
     
     
+    function start_mouse_observer() {
+        function check_obstacling_node( node ) {
+            if ( ( ! node ) || ( node.nodeType != 1 ) ) {
+                return;
+            }
+            if ( node.classList.contains( 'GalleryNav' ) || node.classList.contains( 'media-overlay' ) ) {
+                // ギャラリー表示等の際にナビが画像にかぶさっており、コンテキストメニューから画像を保存できない場合がある
+                // → コンテキストメニューを表示する際に少しの時間だけナビを隠すことで対応
+                //    ※ Google Chrome 48.0.2564.97 m と Opera 34.0.2036.50 は OK、Firefox 44.0 はNG
+                //       Firefox ではおそらく、スクリプトがイベントを処理するよりも、コンテキストメニューが開く方が早い
+                var original_style_display = node.style.display;
+                
+                node.style.display = 'none';
+                setTimeout( function() {
+                    node.style.display = original_style_display;
+                }, 100 );
+            }
+            
+        } // end of check_obstacling_node()
+        
+        
+        //d.addEventListener( 'mousedown', function ( event ) {
+        //    var button = event.button;
+        //    if ( button == 2 ) {
+        //        // 右クリック時
+        //        check_obstacling_node( event.target );
+        //    }
+        //}, false );
+        
+        d.addEventListener( 'contextmenu', function ( event ) {
+            check_obstacling_node( event.target );
+        }, false );
+    
+    } // end of start_mouse_observer()
+    
+    
     function main() {
         // 新規に挿入されるツイートの監視開始
         start_inserted_node_observer();
@@ -617,6 +661,9 @@ function initialize( user_options ) {
         
         // キー入力の監視開始
         start_key_observer();
+        
+        // マウスの監視開始
+        start_mouse_observer();
         
     } // end of main()
     

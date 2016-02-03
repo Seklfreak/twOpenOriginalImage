@@ -22,11 +22,11 @@ Google Chrome、あるいは Opera＋[Download Chrome Extension](https://addons.
 ### ユーザースクリプト版（Greasemonkey / Tampermonkey）
 Firefox＋[Greasemonkey](https://addons.mozilla.org/ja/firefox/addon/greasemonkey/)、Google Chrome＋[Tampermonkey](https://chrome.google.com/webstore/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo?hl=ja)、あるいは Opera＋[Tampermonkey](https://addons.opera.com/ja/extensions/details/tampermonkey-beta/?display=en)の環境で、  
 
-> [Twitter 原寸ビュー(twOpenOriginalImage.user.js)](https://github.com/furyutei/twOpenOriginalImage/raw/master/src/js/twOpenOriginalImage.user.js)  
+> [Twitter 原寸びゅー(twOpenOriginalImage.user.js)](https://github.com/furyutei/twOpenOriginalImage/raw/master/src/js/twOpenOriginalImage.user.js)  
                                 
 をクリックし、指示に従ってインストール。  
 
-※ 0.1.3.0 以降は、ダウンロードヘルパー機能も原寸ビューに集約済み。これより前に画像ダウンロードヘルパーをインストールしていた場合、当該スクリプト（twImageDownloadHelper.user）は削除しておくこと。  
+※ 0.1.3.0 以降は、ダウンロードヘルパー機能も原寸びゅーに集約済み。これより前に画像ダウンロードヘルパーをインストールしていた場合、当該スクリプト（twImageDownloadHelper.user）は削除しておくこと。  
 
 
 ■ 使い方
@@ -35,6 +35,9 @@ Web 版公式 Twitter 上で、画像つきツイートには [原寸表示]（[
 これをクリックすると、オリジナルの画像（URLが'～:orig'のもの）が別タブ上に開く。  
 
 画像ダウンロードヘルパーが有効な場合は、[ダウンロード]（[Download]）ボタンが表示され、これをクリックすると当該画像がダウンロードされる（このとき、…….jpg:orig などは、……-orig.jpg に自動的に変換される）。  
+
+拡張機能版では、オプション設定機能あり。  
+また、タイムラインの画像を右クリックしてコンテキストメニューを開き、[原寸画像を保存]を選べば、当該画像がダウンロードされる（このときも拡張子は自動的に変換される）。  
 
 
 ■ オリジナル ( hogas ([@hogextend](https://twitter.com/hogextend/) ) 氏作成 )
@@ -52,4 +55,4 @@ Web 版公式 Twitter 上で、画像つきツイートには [原寸表示]（[
 
 ■ 関連記事
 ---
-- [Twitter 原寸ビュー：Twitterの原寸画像を開くGoogle Chrome拡張機能＆ユーザースクリプト公開 - 風柳メモ](http://furyu.hatenablog.com/entry/20160116/1452871567)  
+- [Twitter 原寸びゅー：Twitterの原寸画像を開くGoogle Chrome拡張機能＆ユーザースクリプト公開 - 風柳メモ](http://furyu.hatenablog.com/entry/20160116/1452871567)  
