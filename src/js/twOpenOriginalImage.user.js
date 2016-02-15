@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.3.2
+// @version         0.1.3.3
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -79,7 +79,7 @@ var LANGUAGE = ( function () {
 switch ( LANGUAGE ) {
     case 'ja' :
         OPTIONS.TITLE_PREFIX = '画像: ';
-        OPTIONS.TWEET_LINK_TEXT = '元ツイート';
+        OPTIONS.TWEET_LINK_TEXT = '元ツイート⤴';
         OPTIONS.BUTTON_TEXT = '原寸画像';
         OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = '全ての画像を同一ページで開く';
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = '画像を個別に開く';
@@ -96,6 +96,41 @@ switch ( LANGUAGE ) {
         OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = 'Display images on another page';
         break;
 }
+
+
+function is_firefox() {
+    return ( 0 <= w.navigator.userAgent.toLowerCase().indexOf( 'firefox' ) );
+} // end of is_firefox()
+
+
+function is_ie() {
+    return !! ( w.navigator.userAgent.toLowerCase().match( /(?:msie|trident)/ ) );
+} // end of is_ie()
+
+
+function import_node( node, doc ) {
+    if ( ! doc ) {
+        doc = d;
+    }
+    if ( doc === d ) {
+        return node.cloneNode( true );
+    }
+    try {
+        return doc.importNode( node, true );
+    }
+    catch ( error ) {
+        var source_container = d.createElement( 'div' ),
+            target_container = doc.createElement( 'div' );
+        
+        source_container.appendChild( node );
+        target_container.innerHTML = source_container.innerHTML;
+        source_container.removeChild( node );
+        
+        var imported_node = target_container.removeChild( target_container.firstChild );
+        
+        return imported_node;
+    }
+} // end of import_node()
 
 
 var create_download_link = ( function () {
@@ -118,7 +153,7 @@ var create_download_link = ( function () {
             doc = d;
         }
         
-        var link = ( doc === d ) ? link_template.cloneNode( true ) : doc.importNode( link_template, true ),
+        var link = import_node( link_template, doc ),
             link_style = link.style;
         
         link.addEventListener( 'mouseover', function ( event ) {
@@ -149,7 +184,7 @@ function initialize_download_helper() {
         return false;
     }
     
-    if ( ! OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID ) {
+    if ( ( ! OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID ) || ( is_ie() ) ) {
         return true;
     }
     
@@ -348,8 +383,8 @@ function initialize( user_options ) {
                 head.appendChild( title_node );
                 
                 if ( tweet_url ) {
-                    var link = child_document.importNode( link_template, true ),
-                        header = child_document.importNode( header_template, true );
+                    var link = import_node( link_template, child_document ),
+                        header = import_node( header_template, child_document );
                     
                     link.href = tweet_url;
                     link.appendChild( child_document.createTextNode( OPTIONS.TWEET_LINK_TEXT ) );
@@ -358,13 +393,13 @@ function initialize( user_options ) {
                 }
                 
                 img_urls.forEach( function ( img_url ) {
-                    var img = child_document.importNode( img_template, true ),
-                        link = child_document.importNode( link_template, true ),
-                        img_link_container = child_document.importNode( img_link_container_template, true );
+                    var img = import_node( img_template, child_document ),
+                        link = import_node( link_template, child_document ),
+                        img_link_container = import_node( img_link_container_template, child_document );
                     
-                    if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID ) {
+                    if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID && ( ! is_ie() ) ) {
                         var download_link = create_download_link( img_url, child_document ),
-                            download_link_container = child_document.importNode( download_link_container_template, true );
+                            download_link_container = import_node( download_link_container_template, child_document );
                         
                         download_link.href = img_url;
                         
@@ -373,7 +408,7 @@ function initialize( user_options ) {
                             event.preventDefault();
                             
                             var old_iframe = child_document.querySelector( 'iframe[name="' + SCRIPT_NAME + '_download_frame' + '"]' ),
-                                iframe = child_document.importNode( download_frame_template, true );
+                                iframe = import_node( download_frame_template, child_document );
                             
                             if ( old_iframe ) {
                                 child_document.documentElement.removeChild( old_iframe );
@@ -398,7 +433,7 @@ function initialize( user_options ) {
                 is_complete = true;
             }
             
-            if ( 0 <= w.navigator.userAgent.toLowerCase().indexOf( 'firefox' ) ) {
+            if ( is_firefox() ) {
                 // TODO: Firefox(Greasemonkey) で window.open() した後 document を書きかえるまでにウェイトをおかないとうまく行かない
                 
                 // TODO: ページが load された後でも書き換えがうまくいかない場合がある
