@@ -41,6 +41,9 @@
 ,   "DISPLAY_ONE_PER_PAGE_DESCRIPTION" : {
         "message" : "画像を個別に開く"
     }
+,   "DISPLAY_OVERLAY" : {
+        "message" : "オーバーレイ（タイムラインと同一のタブ上で開く）"
+    }
 ,   "BUTTON_TEXT_HEADER" : {
         "message" : "画像を開くボタンの文字列"
     }

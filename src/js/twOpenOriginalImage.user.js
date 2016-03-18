@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.3.3
+// @version         0.1.4.1
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -57,11 +57,13 @@ var OPTIONS = {
     SHOW_IN_DETAIL_PAGE : true // true: 詳細ページで動作
 ,   SHOW_IN_TIMELINE : true // true: タイムラインで動作
 ,   DISPLAY_ALL_IN_ONE_PAGE : true // true: [Click] 全ての画像を同一ページで開く / [Alt]+[Click] 画像を個別に開く、false: 左記の逆の動作
+,   DISPLAY_OVERLAY : true // true: 全ての画像を同一ページで開く際に(別タブで開かず)タイムライン上にオーバーレイする
 ,   DOWNLOAD_HELPER_SCRIPT_IS_VALID : true // true: ダウンロードヘルパー機能有効
 ,   OPERATION : true // true: 動作中、false: 停止中
 ,   WAIT_AFTER_OPENPAGE : 500 // Firefox でページを開いた後、画像を挿入するまでのタイムラグ(ms)
     // TODO: Firefox(Greasemonkey) で window.open() した後 document を書きかえるまでにウェイトをおかないとうまく行かない
 ,   KEYCODE_DISPLAY_IMAGES : 118 // 画像を開くときのキー(118=[v])
+,   KEYCODE_CLOSE_OVERLAY : 27 // 画像を閉じるときのキー(※オーバーレイ時のみ)
 ,   HELP_KEYCHAR_DISPLAY_IMAGES : 'v'
 };
 
@@ -80,20 +82,22 @@ switch ( LANGUAGE ) {
     case 'ja' :
         OPTIONS.TITLE_PREFIX = '画像: ';
         OPTIONS.TWEET_LINK_TEXT = '元ツイート⤴';
+        OPTIONS.CLOSE_TEXT = '☒ 閉じる';
         OPTIONS.BUTTON_TEXT = '原寸画像';
         OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = '全ての画像を同一ページで開く';
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = '画像を個別に開く';
-        OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = 'ダウンロード';
-        OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = '画像を別ページに開く';
+        OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = '↓ ダウンロード';
+        OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = '原寸画像を開く 【原寸びゅー】';
         break;
     default:
         OPTIONS.TITLE_PREFIX = 'IMG: ';
         OPTIONS.TWEET_LINK_TEXT = 'Tweet';
+        OPTIONS.CLOSE_TEXT = 'Close';
         OPTIONS.BUTTON_TEXT = 'Original';
         OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = 'Display all in one page';
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = 'Display one image per page';
         OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = 'Download';
-        OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = 'Display images on another page';
+        OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = 'Display original images (' + SCRIPT_NAME + ')';
         break;
 }
 
@@ -131,6 +135,13 @@ function import_node( node, doc ) {
         return imported_node;
     }
 } // end of import_node()
+
+
+function clear_node( node ) {
+    while ( node.firstChild ) {
+        node.removeChild( node.firstChild );
+    }
+} // end of clear_node()
 
 
 var create_download_link = ( function () {
@@ -212,12 +223,12 @@ function initialize_download_helper() {
 
 function initialize( user_options ) {
     if ( user_options ) {
-        for ( var name in user_options ) {
-            if ( ! ( user_options.hasOwnProperty( name ) ) || ( user_options[ name ] === null ) ) {
-                continue;
+        Object.keys( user_options ).forEach( function ( name ) {
+            if ( user_options[ name ] === null ) {
+                return;
             }
             OPTIONS[ name ] = user_options[ name ];
-        }
+        } );
     }
     
     if ( ! OPTIONS.OPERATION ) {
@@ -292,6 +303,10 @@ function initialize( user_options ) {
             img_link_container_template = d.createElement( 'div' ),
             download_link_container_template = d.createElement( 'div' ),
             download_frame_template = d.createElement( 'iframe' ),
+            page_container = d.querySelector( 'div#page-container' ),
+            image_overlay_container = d.createElement( 'div' ),
+            image_container = d.createElement( 'div' ),
+            
             header_style = header_template.style,
             button_style = button.style,
             link_style = link_template.style,
@@ -299,6 +314,9 @@ function initialize( user_options ) {
             img_link_container_style = img_link_container_template.style,
             download_link_container_style = download_link_container_template.style,
             download_frame_style = download_frame_template.style,
+            image_overlay_container_style = image_overlay_container.style,
+            image_container_style = image_container.style,
+            
             button_container_classname = SCRIPT_NAME + 'Button',
             opened_name_map = {},
             is_mac = ( 0 <= w.navigator.platform.toLowerCase().indexOf( 'mac' ) ),
@@ -306,6 +324,7 @@ function initialize( user_options ) {
         
         header_style.fontSize = '16px';
         header_style.margin = '0 0 8px';
+        header_style.padding = '8px 8px 4px';
         
         button.type =  'button';
         button_style.padding = '2px 6px';
@@ -322,11 +341,15 @@ function initialize( user_options ) {
         
         link_template.target = '_blank';
         link_style.textDecoration = 'none';
+        link_style.display = 'inline-block';
         link_style.color = '#66757f';
+        link_style.background = '#f5f8fa';
         
         img_style.maxWidth = '100%';
         img_style.height = 'auto';
+        img_link_container_style.clear = 'both';
         img_link_container_style.margin = '0 0 8px 0';
+        img_link_container_style.textAlign = 'center';
         
         download_link_container_style.margin = '0 0 1px 0';
         
@@ -334,6 +357,152 @@ function initialize( user_options ) {
         download_frame_style.width = '0';
         download_frame_style.height = '0';
         download_frame_style.visibility = 'hidden';
+        
+        image_overlay_container.id = SCRIPT_NAME + '_image_overlay_container';
+        image_overlay_container_style.display = 'none';
+        image_overlay_container_style.position = 'absolute';
+        image_overlay_container_style.top = 0;
+        image_overlay_container_style.left = 0;
+        image_overlay_container_style.width = '100%';
+        image_overlay_container_style.height = 'auto';
+        image_overlay_container_style.zIndex = 10000;
+        image_overlay_container_style.padding = '0';
+        image_overlay_container_style.background = 'rgba( 0, 0, 0, 0.8 )';
+        image_overlay_container_style.background = '#f5f8fa';
+        
+        image_container.className = SCRIPT_NAME + '_image_container';
+        image_container_style.width = '100%';
+        image_container_style.height = 'auto';
+        
+        image_overlay_container.appendChild( image_container );
+        
+        d.body.appendChild( image_overlay_container );
+        
+        function add_images_to_page( img_urls, parent, target_document ) {
+            if ( ! target_document ) {
+                target_document = d;
+            }
+            img_urls.forEach( function ( img_url ) {
+                var img = import_node( img_template, target_document ),
+                    link = import_node( link_template, target_document ),
+                    img_link_container = import_node( img_link_container_template, target_document );
+                
+                if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID && ( ! is_ie() ) ) {
+                    var download_link = create_download_link( img_url, target_document ),
+                        download_link_container = import_node( download_link_container_template, target_document );
+                    
+                    download_link.href = img_url;
+                    
+                    download_link.addEventListener( 'click', function ( event ) {
+                        event.stopPropagation();
+                        event.preventDefault();
+                        
+                        var old_iframe = target_document.querySelector( 'iframe[name="' + SCRIPT_NAME + '_download_frame' + '"]' ),
+                            iframe = import_node( download_frame_template, target_document );
+                        
+                        if ( old_iframe ) {
+                            target_document.documentElement.removeChild( old_iframe );
+                        }
+                        iframe.src = img_url;
+                        target_document.documentElement.appendChild( iframe );
+                        
+                        return false;
+                    }, false );
+                    
+                    download_link_container.appendChild( download_link );
+                    img_link_container.appendChild( download_link_container );
+                }
+                
+                img.src = link.href = img_url;
+                link.style.display= 'block';
+                link.appendChild( img );
+                img_link_container.appendChild( link );
+                
+                parent.appendChild( img_link_container );
+            } );
+        } // end of add_images_to_page()
+        
+        
+        function show_overlay( img_urls, tweet_url, title ) {
+            var body = d.body,
+                timeline = d.querySelector( 'div#doc' ),
+                gallery = d.querySelector( 'div.Gallery' ),
+                gallery_overlay = d.querySelector( 'div.gallery-overlay' ),
+                permalink_overlay = d.querySelector( 'div#permalink-overlay' ),
+                close_link = import_node( link_template ),
+                header = import_node( header_template ),
+                
+                body_style = body.style,
+                timeline_style = timeline.style,
+                gallery_style = ( gallery ) ? gallery.style : null,
+                gallery_overlay_style = ( gallery_overlay ) ? gallery_overlay.style : null,
+                permalink_overlay_style = ( permalink_overlay ) ? permalink_overlay.style : null,
+                close_link_style = close_link.style,
+                header_style = header.style,
+                
+                saved_scrollTop = ( body.scrollTop || d.documentElement.scrollTop ),
+                saved_body_overflow = body_style.overflow,
+                saved_body_marginRight = body_style.marginRight,
+                saved_timeline_display = timeline_style.display,
+                saved_gallery_display = ( gallery_style ) ?  gallery_style.display : null,
+                saved_gallery_overlay_display = ( gallery_overlay_style ) ? gallery_overlay_style.display : null,
+                saved_permalink_overlay_display = ( permalink_overlay_style ) ? permalink_overlay_style.display : null;
+            
+            clear_node( image_container );
+            
+            close_link.className = SCRIPT_NAME + '_close_overlay';
+            close_link.href = tweet_url;
+            close_link.appendChild( d.createTextNode( OPTIONS.CLOSE_TEXT ) );
+            //header_style.cssFloat = 'right';
+            header_style.textAlign = 'right';
+            header_style.background = 'white';
+            header_style.borderBottom = 'solid 1px silver';
+            header.appendChild( close_link );
+            
+            image_container.appendChild( header );
+            
+            add_images_to_page( img_urls, image_container );
+            
+            image_overlay_container_style.display = 'block';
+            
+            body_style.overflow = 'auto';
+            body_style.marginRight = '0';
+            timeline_style.display = 'none';
+            if ( gallery_style ) {
+                gallery_style.display = 'none';
+            }
+            if ( gallery_overlay_style ) {
+                gallery_overlay_style.display = 'none';
+            }
+            if ( permalink_overlay_style ) {
+                permalink_overlay_style.display = 'none';
+            }
+            close_link.addEventListener( 'click', function ( event ) {
+                event.stopPropagation();
+                event.preventDefault();
+                
+                image_overlay_container_style.display = 'none';
+                if ( permalink_overlay_style ) {
+                    permalink_overlay_style.display = saved_permalink_overlay_display;
+                }
+                if ( gallery_overlay_style ) {
+                    gallery_overlay_style.display = saved_gallery_overlay_display;
+                }
+                if ( gallery_style ) {
+                    gallery_style.display = saved_gallery_display;
+                }
+                timeline_style.display = saved_timeline_display;
+                body_style.marginRIght = saved_body_marginRight;
+                body_style.overflow = saved_body_overflow;
+                w.scrollTo( 0, saved_scrollTop );
+                
+                return false;
+            }, false );
+            
+            w.scrollTo( 0, 0 );
+            
+        } // end of show_overlay()
+        
         
         function open_page( img_urls, tweet_url, title ) {
             var is_complete = false,
@@ -376,9 +545,9 @@ function initialize( user_options ) {
                     title_node = child_document.createElement( 'title' ),
                     title_text = OPTIONS.TITLE_PREFIX + ( ( title ) ? title : '' );
                 
-                while ( title_node.firstChild ) {
-                    title_node.removeChild( title_node.firstChild );
-                }
+                body.style.background = '#f5f8fa';
+                
+                clear_node( title_node );
                 title_node.appendChild( child_document.createTextNode( title_text ) );
                 head.appendChild( title_node );
                 
@@ -388,45 +557,12 @@ function initialize( user_options ) {
                     
                     link.href = tweet_url;
                     link.appendChild( child_document.createTextNode( OPTIONS.TWEET_LINK_TEXT ) );
+                    header.style.cssFloat = 'right';
                     header.appendChild( link );
                     body.appendChild( header );
                 }
                 
-                img_urls.forEach( function ( img_url ) {
-                    var img = import_node( img_template, child_document ),
-                        link = import_node( link_template, child_document ),
-                        img_link_container = import_node( img_link_container_template, child_document );
-                    
-                    if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID && ( ! is_ie() ) ) {
-                        var download_link = create_download_link( img_url, child_document ),
-                            download_link_container = import_node( download_link_container_template, child_document );
-                        
-                        download_link.href = img_url;
-                        
-                        download_link.addEventListener( 'click', function ( event ) {
-                            event.stopPropagation();
-                            event.preventDefault();
-                            
-                            var old_iframe = child_document.querySelector( 'iframe[name="' + SCRIPT_NAME + '_download_frame' + '"]' ),
-                                iframe = import_node( download_frame_template, child_document );
-                            
-                            if ( old_iframe ) {
-                                child_document.documentElement.removeChild( old_iframe );
-                            }
-                            iframe.src = img_url;
-                            child_document.documentElement.appendChild( iframe );
-                            
-                            return false;
-                        }, false );
-                        
-                        download_link_container.appendChild( download_link );
-                        body.appendChild( download_link_container );
-                    }
-                    img.src = link.href = img_url;
-                    link.appendChild( img );
-                    img_link_container.appendChild( link );
-                    body.appendChild( img_link_container );
-                } );
+                add_images_to_page( img_urls, body, child_document );
                 
                 child_window.focus();
                 
@@ -495,7 +631,12 @@ function initialize( user_options ) {
                     if ( tweet_text ) {
                         title = tweet_text.textContent;
                     }
-                    open_page( img_urls, tweet_url, title );
+                    if ( OPTIONS.DISPLAY_OVERLAY ) {
+                        show_overlay( img_urls, tweet_url, title );
+                    }
+                    else {
+                        open_page( img_urls, tweet_url, title );
+                    }
                 }
                 else {
                     img_urls.reverse();
@@ -509,7 +650,7 @@ function initialize( user_options ) {
             action_list.appendChild( button_container );
             
             return button_container;
-        }
+        } // end of add_open_button()
         
         return add_open_button;
     } )(); // end of add_open_button()
@@ -554,12 +695,9 @@ function initialize( user_options ) {
         
         tr.classList.add( SCRIPT_NAME + '_key_help' );
         
-        while ( shortcut_key.firstChild ) {
-            shortcut_key.removeChild( shortcut_key.firstChild );
-        }
-        while ( shortcut_label.firstChild ) {
-            shortcut_label.removeChild( shortcut_label.firstChild );
-        }
+        clear_node( shortcut_key );
+        clear_node( shortcut_label );
+        
         shortcut_key.appendChild( d.createTextNode( OPTIONS.HELP_KEYCHAR_DISPLAY_IMAGES ) );
         shortcut_label.appendChild( d.createTextNode( OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES ) );
         
@@ -591,7 +729,28 @@ function initialize( user_options ) {
     } // end of start_inserted_node_observer()
     
     
+    function close_overlay() {
+        var image_overlay_container = d.querySelector( 'div#' + SCRIPT_NAME + '_image_overlay_container' ),
+            close_link = ( image_overlay_container ) ? image_overlay_container.querySelector( 'a.' + SCRIPT_NAME + '_close_overlay' ) : null;
+        
+        if ( ( ! image_overlay_container )  || ( image_overlay_container.style.display == 'none' ) || ( ! close_link ) ) {
+            return false;
+        }
+        
+        close_link.click();
+        
+        return true;
+    } // end of close_overlay()
+    
+    
     function view_images_on_keypress( event ) {
+        if ( close_overlay() ) {
+            event.stopPropagation();
+            event.preventDefault();
+            
+            return false;
+        }
+        
         function get_button( target_tweet ) {
             return ( target_tweet ) ? target_tweet.querySelector( '.' + SCRIPT_NAME + 'Button input[type="button"]' ) : null;
         } // end of get_button()
@@ -624,15 +783,35 @@ function initialize( user_options ) {
     } // end of view_images_on_keypress()
     
     
+    function close_overview_on_keypress( event ) {
+        if ( ! close_overlay() ) {
+            return;
+        }
+        
+        event.stopPropagation();
+        event.preventDefault();
+        
+        return false;
+    } // end of close_overview_on_keypress()
+    
+    
     function start_key_observer() {
-        d.addEventListener( 'keypress', function ( event ) {
-            var active_element = d.activeElement;
-            
+        function is_valid( active_element ) {
             if ( 
                 ( ( active_element.getAttribute( 'name' ) == 'tweet' ) && ( active_element.getAttribute( 'contenteditable' ) == 'true' ) ) ||
                 ( active_element.tagName == 'TEXTAREA' ) ||
                 ( ( active_element.tagName == 'INPUT' ) && ( active_element.getAttribute( 'type' ).toUpperCase() == 'TEXT' ) )
             ) {
+                return false;
+            }
+            return true;
+        } // end of is_valid()
+        
+        
+        d.body.addEventListener( 'keypress', function ( event ) {
+            var active_element = d.activeElement;
+            
+            if ( ! is_valid( active_element ) ) {
                 return;
             }
             
@@ -646,6 +825,26 @@ function initialize( user_options ) {
                     break;
             }
         }, false );
+        
+        
+        d.body.addEventListener( 'keydown', function ( event ) {
+            var active_element = d.activeElement;
+            
+            if ( ! is_valid( active_element ) ) {
+                return;
+            }
+            
+            var key_code = event.keyCode;
+            
+            switch ( key_code ) {
+                case OPTIONS.KEYCODE_CLOSE_OVERLAY :
+                    return close_overview_on_keypress( event );
+                    break;
+                default :
+                    break;
+            }
+        }, false );
+        
     } // end of start_key_observer()
     
     

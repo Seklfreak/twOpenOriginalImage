@@ -35,11 +35,9 @@ function get_text( value ) {
 function get_init_function( message_type, option_name_to_function_map, namespace ) {
     var option_names = [];
     
-    for ( var option_name in option_name_to_function_map ) {
-        if ( option_name_to_function_map.hasOwnProperty( option_name ) ) {
-            option_names.push( option_name );
-        }
-    }
+    Object.keys( option_name_to_function_map ).forEach( function ( option_name ) {
+        option_names.push( option_name );
+    } );
     
     function analyze_response( response ) {
         var options = {};
@@ -48,13 +46,13 @@ function get_init_function( message_type, option_name_to_function_map, namespace
             response = {};
         }
         
-        for ( var option_name in option_name_to_function_map ) {
+        Object.keys( option_name_to_function_map ).forEach( function ( option_name ) {
             if ( ! ( response.hasOwnProperty( option_name ) ) ) {
                 options[ option_name ] = null;
-                continue;
+                return;
             }
             options[ option_name ] =  option_name_to_function_map[ option_name ]( response[ option_name ] );
-        }
+        } );
         return options;
     }
     
@@ -79,6 +77,7 @@ var twOpenOriginalImage_chrome_init = ( function() {
             SHOW_IN_DETAIL_PAGE : get_bool
         ,   SHOW_IN_TIMELINE : get_bool
         ,   DISPLAY_ALL_IN_ONE_PAGE : get_bool
+        ,   DISPLAY_OVERLAY : get_bool
         ,   DOWNLOAD_HELPER_SCRIPT_IS_VALID : get_bool
         ,   OPERATION : get_bool
         ,   WAIT_AFTER_OPENPAGE : get_int
@@ -95,6 +94,7 @@ var twOpenOriginalImage_chrome_init = ( function() {
 
 w.twOpenOriginalImage_chrome_init = twOpenOriginalImage_chrome_init;
 return;
+
 
 /*
 // 0.1.3.0: twImageDownloadHelper.user.js の機能も twOpenOriginalImage.user.js に取り込んだため、無効化

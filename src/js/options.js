@@ -3,6 +3,7 @@
 $().ready( function () {
     var RADIO_KV_LIST = [
             { key : 'DISPLAY_ALL_IN_ONE_PAGE', val : true }
+        ,   { key : 'DISPLAY_OVERLAY', val : true }
         ,   { key : 'DOWNLOAD_HELPER_SCRIPT_IS_VALID', val : true }
         ],
         INT_KV_LIST = [
@@ -18,10 +19,14 @@ $().ready( function () {
     
     $( '.i18n' ).each( function () {
         var jq_elm = $( this ),
-            text = chrome.i18n.getMessage( ( jq_elm.val() ) || ( jq_elm.html() ) );
+            value = ( jq_elm.val() ) || ( jq_elm.html() ),
+            text = chrome.i18n.getMessage( value );
         
         if ( ! text ) {
             return;
+        }
+        if ( ( value == 'OPTIONS' ) && ( jq_elm.parent().prop( 'tagName' ) == 'H1' ) ) {
+            text += ' ( version ' + chrome.app.getDetails().version + ' )';
         }
         if ( jq_elm.val() ) {
             jq_elm.val( text );

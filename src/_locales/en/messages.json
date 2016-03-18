@@ -41,6 +41,9 @@
 ,   "DISPLAY_ONE_PER_PAGE_DESCRIPTION" : {
         "message" : "Display one image per page"
     }
+,   "DISPLAY_OVERLAY" : {
+        "message" : "Overlay"
+    }
 ,   "BUTTON_TEXT_HEADER" : {
         "message" : "Button Text"
     }
