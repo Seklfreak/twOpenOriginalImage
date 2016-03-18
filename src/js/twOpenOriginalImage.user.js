@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.4.3
+// @version         0.1.4.4
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -341,9 +341,7 @@ function initialize( user_options ) {
         
         link_template.target = '_blank';
         link_style.textDecoration = 'none';
-        //link_style.display = 'inline-block';
         link_style.color = '#66757f';
-        //link_style.background = '#f5f8fa';
         
         img_style.maxWidth = '100%';
         img_style.height = 'auto';
@@ -368,11 +366,11 @@ function initialize( user_options ) {
         image_overlay_container_style.zIndex = 10000;
         image_overlay_container_style.padding = '0';
         image_overlay_container_style.background = 'rgba( 0, 0, 0, 0.8 )';
-        image_overlay_container_style.background = '#f5f8fa';
         
         image_container.className = SCRIPT_NAME + '_image_container';
         image_container_style.width = '100%';
         image_container_style.height = 'auto';
+        image_container_style.marginTop = '26px';
         
         image_overlay_container.appendChild( image_container );
         
@@ -414,7 +412,6 @@ function initialize( user_options ) {
                 }
                 
                 img.src = link.href = img_url;
-                //link.style.display= 'block';
                 link.appendChild( img );
                 img_link_container.appendChild( link );
                 
@@ -425,7 +422,7 @@ function initialize( user_options ) {
         
         function show_overlay( img_urls, tweet_url, title ) {
             var body = d.body,
-                timeline = d.querySelector( 'div#doc' ),
+                doc = d.querySelector( 'div#doc' ),
                 gallery = d.querySelector( 'div.Gallery' ),
                 gallery_overlay = d.querySelector( 'div.gallery-overlay' ),
                 permalink_overlay = d.querySelector( 'div#permalink-overlay' ),
@@ -433,7 +430,7 @@ function initialize( user_options ) {
                 header = import_node( header_template ),
                 
                 body_style = body.style,
-                timeline_style = timeline.style,
+                doc_style = doc.style,
                 gallery_style = ( gallery ) ? gallery.style : null,
                 gallery_overlay_style = ( gallery_overlay ) ? gallery_overlay.style : null,
                 permalink_overlay_style = ( permalink_overlay ) ? permalink_overlay.style : null,
@@ -441,12 +438,19 @@ function initialize( user_options ) {
                 header_style = header.style,
                 
                 saved_scrollTop = ( body.scrollTop || d.documentElement.scrollTop ),
+                
                 saved_body_overflow = body_style.overflow,
                 saved_body_marginRight = body_style.marginRight,
-                saved_timeline_display = timeline_style.display,
-                saved_gallery_display = ( gallery_style ) ?  gallery_style.display : null,
-                saved_gallery_overlay_display = ( gallery_overlay_style ) ? gallery_overlay_style.display : null,
-                saved_permalink_overlay_display = ( permalink_overlay_style ) ? permalink_overlay_style.display : null;
+                saved_doc_overflow = doc_style.overflow,
+                saved_doc_height = doc_style.height;
+            
+            function update_image_overlay_container_height() {
+                var height = Math.max( image_container.offsetHeight + 64, w.innerHeight );
+                
+                doc_style.height = height + 'px';
+                
+                image_overlay_container_style.height = height + 'px';
+            } // end of update_image_overlay_container_height()
             
             clear_node( image_container );
             
@@ -463,45 +467,41 @@ function initialize( user_options ) {
             header_style.borderBottom = 'solid 1px silver';
             header.appendChild( close_link );
             
-            image_container_style.marginTop = '26px';
             image_container.appendChild( header );
             
             add_images_to_page( img_urls, image_container );
             
-            image_overlay_container_style.display = 'block';
-            
             body_style.overflow = 'auto';
             body_style.marginRight = '0';
-            timeline_style.display = 'none';
-            if ( gallery_style ) {
-                gallery_style.display = 'none';
-            }
-            if ( gallery_overlay_style ) {
-                gallery_overlay_style.display = 'none';
-            }
-            if ( permalink_overlay_style ) {
-                permalink_overlay_style.display = 'none';
-            }
+            
+            doc_style.overflow = 'hidden';
+            update_image_overlay_container_height();
+            
+            image_overlay_container_style.display = 'block';
+            
             close_link.addEventListener( 'click', function ( event ) {
                 event.stopPropagation();
                 event.preventDefault();
                 
                 image_overlay_container_style.display = 'none';
-                if ( permalink_overlay_style ) {
-                    permalink_overlay_style.display = saved_permalink_overlay_display;
-                }
-                if ( gallery_overlay_style ) {
-                    gallery_overlay_style.display = saved_gallery_overlay_display;
-                }
-                if ( gallery_style ) {
-                    gallery_style.display = saved_gallery_display;
-                }
-                timeline_style.display = saved_timeline_display;
+                
+                doc_style.height = saved_doc_height;
+                doc_style.overflow = saved_doc_overflow;
+                
                 body_style.marginRIght = saved_body_marginRight;
                 body_style.overflow = saved_body_overflow;
+                
                 w.scrollTo( 0, saved_scrollTop );
                 
                 return false;
+            }, false );
+            
+            w.addEventListener( 'scroll', function ( event ) {
+                update_image_overlay_container_height();
+            }, false );
+            
+            w.addEventListener( 'resize', function ( event ) {
+                update_image_overlay_container_height();
             }, false );
             
             w.scrollTo( 0, 0 );
@@ -873,14 +873,6 @@ function initialize( user_options ) {
             
         } // end of check_obstacling_node()
         
-        
-        //d.addEventListener( 'mousedown', function ( event ) {
-        //    var button = event.button;
-        //    if ( button == 2 ) {
-        //        // 右クリック時
-        //        check_obstacling_node( event.target );
-        //    }
-        //}, false );
         
         d.addEventListener( 'contextmenu', function ( event ) {
             check_obstacling_node( event.target );
