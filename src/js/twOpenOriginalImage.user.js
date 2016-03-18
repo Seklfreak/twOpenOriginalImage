@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.4.2
+// @version         0.1.4.3
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -454,11 +454,16 @@ function initialize( user_options ) {
             close_link.href = tweet_url;
             close_link.appendChild( d.createTextNode( OPTIONS.CLOSE_TEXT ) );
             //header_style.cssFloat = 'right';
+            header_style.position = 'fixed';
+            header_style.top = '0';
+            header_style.right = '0';
+            header_style.width = '100%';
             header_style.textAlign = 'right';
             header_style.background = 'white';
             header_style.borderBottom = 'solid 1px silver';
             header.appendChild( close_link );
             
+            image_container_style.marginTop = '26px';
             image_container.appendChild( header );
             
             add_images_to_page( img_urls, image_container );
