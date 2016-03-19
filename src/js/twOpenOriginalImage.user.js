@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.4.5
+// @version         0.1.4.6
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -421,6 +421,10 @@ function initialize( user_options ) {
                 
                 img.src = link.href = img_url;
                 link.appendChild( img );
+                link.addEventListener( 'click', function ( event ) {
+                    event.stopPropagation();
+                }, false );
+                
                 img_link_container.appendChild( link );
                 
                 parent.appendChild( img_link_container );
@@ -460,6 +464,25 @@ function initialize( user_options ) {
                 image_overlay_container_style.height = height + 'px';
             } // end of update_image_overlay_container_height()
             
+            
+            function close_image_overlay_container( event ) {
+                event.stopPropagation();
+                event.preventDefault();
+                
+                image_overlay_container_style.display = 'none';
+                
+                doc_style.height = saved_doc_height;
+                doc_style.overflow = saved_doc_overflow;
+                
+                body_style.marginRIght = saved_body_marginRight;
+                body_style.overflow = saved_body_overflow;
+                
+                w.scrollTo( 0, saved_scrollTop );
+                
+                return false;
+            } // end of close_image_overlay_container()
+            
+            
             clear_node( image_container );
             
             close_link.className = SCRIPT_NAME + '_close_overlay';
@@ -487,22 +510,8 @@ function initialize( user_options ) {
             
             image_overlay_container_style.display = 'block';
             
-            close_link.addEventListener( 'click', function ( event ) {
-                event.stopPropagation();
-                event.preventDefault();
-                
-                image_overlay_container_style.display = 'none';
-                
-                doc_style.height = saved_doc_height;
-                doc_style.overflow = saved_doc_overflow;
-                
-                body_style.marginRIght = saved_body_marginRight;
-                body_style.overflow = saved_body_overflow;
-                
-                w.scrollTo( 0, saved_scrollTop );
-                
-                return false;
-            }, false );
+            close_link.addEventListener( 'click', close_image_overlay_container, false );
+            image_overlay_container.addEventListener( 'click', close_image_overlay_container, false );
             
             w.addEventListener( 'scroll', function ( event ) {
                 update_image_overlay_container_height();
