@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.4.4
+// @version         0.1.4.5
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -294,6 +294,14 @@ function initialize( user_options ) {
     } // end of is_valid_url()
     
     
+    function get_scroll_top( doc ) {
+        if ( ! doc ) {
+            doc = d;
+        }
+        return ( doc.body.scrollTop || doc.documentElement.scrollTop );
+    } // end of get_scroll_top()
+    
+    
     var add_open_button = ( function () {
         var header_template = d.createElement( 'h1' ),
             button_container_template = d.createElement( 'div' ),
@@ -437,7 +445,7 @@ function initialize( user_options ) {
                 close_link_style = close_link.style,
                 header_style = header.style,
                 
-                saved_scrollTop = ( body.scrollTop || d.documentElement.scrollTop ),
+                saved_scrollTop = get_scroll_top(),
                 
                 saved_body_overflow = body_style.overflow,
                 saved_body_marginRight = body_style.marginRight,
@@ -445,7 +453,7 @@ function initialize( user_options ) {
                 saved_doc_height = doc_style.height;
             
             function update_image_overlay_container_height() {
-                var height = Math.max( image_container.offsetHeight + 64, w.innerHeight );
+                var height = Math.max( image_container.offsetHeight + 64, w.innerHeight + get_scroll_top() );
                 
                 doc_style.height = height + 'px';
                 
