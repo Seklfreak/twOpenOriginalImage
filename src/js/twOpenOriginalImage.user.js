@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.4.6
+// @version         0.1.4.7
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -451,16 +451,17 @@ function initialize( user_options ) {
                 
                 saved_scrollTop = get_scroll_top(),
                 
+                saved_body_position = body_style.position,
                 saved_body_overflow = body_style.overflow,
                 saved_body_marginRight = body_style.marginRight,
                 saved_doc_overflow = doc_style.overflow,
-                saved_doc_height = doc_style.height;
+                saved_doc_height = doc_style.height,
+                saved_doc_marginTop = doc_style.marginTop;
             
             function update_image_overlay_container_height() {
                 var height = Math.max( image_container.offsetHeight + 64, w.innerHeight + get_scroll_top() );
                 
-                doc_style.height = height + 'px';
-                
+                doc_style.height = ( height + saved_scrollTop ) + 'px';
                 image_overlay_container_style.height = height + 'px';
             } // end of update_image_overlay_container_height()
             
@@ -473,9 +474,11 @@ function initialize( user_options ) {
                 
                 doc_style.height = saved_doc_height;
                 doc_style.overflow = saved_doc_overflow;
+                doc_style.marginTop = saved_doc_marginTop;
                 
                 body_style.marginRIght = saved_body_marginRight;
                 body_style.overflow = saved_body_overflow;
+                body_style.position = saved_body_position;
                 
                 w.scrollTo( 0, saved_scrollTop );
                 
@@ -502,10 +505,12 @@ function initialize( user_options ) {
             
             add_images_to_page( img_urls, image_container );
             
+            body_style.position = 'static';
             body_style.overflow = 'auto';
             body_style.marginRight = '0';
             
             doc_style.overflow = 'hidden';
+            doc_style.marginTop = -saved_scrollTop + 'px';
             update_image_overlay_container_height();
             
             image_overlay_container_style.display = 'block';
