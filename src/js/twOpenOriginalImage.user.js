@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.4.7
+// @version         0.1.4.8
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -458,7 +458,7 @@ function initialize( user_options ) {
                 saved_doc_height = doc_style.height,
                 saved_doc_marginTop = doc_style.marginTop;
             
-            function update_image_overlay_container_height() {
+            function update_image_overlay_container_height( event ) {
                 var height = Math.max( image_container.offsetHeight + 64, w.innerHeight + get_scroll_top() );
                 
                 doc_style.height = ( height + saved_scrollTop ) + 'px';
@@ -470,13 +470,16 @@ function initialize( user_options ) {
                 event.stopPropagation();
                 event.preventDefault();
                 
+                w.removeEventListener( 'resize', update_image_overlay_container_height, false);
+                w.removeEventListener( 'scroll', update_image_overlay_container_height, false);
+                
                 image_overlay_container_style.display = 'none';
                 
                 doc_style.height = saved_doc_height;
-                doc_style.overflow = saved_doc_overflow;
                 doc_style.marginTop = saved_doc_marginTop;
+                doc_style.overflow = saved_doc_overflow;
                 
-                body_style.marginRIght = saved_body_marginRight;
+                body_style.marginRight = saved_body_marginRight;
                 body_style.overflow = saved_body_overflow;
                 body_style.position = saved_body_position;
                 
@@ -518,13 +521,8 @@ function initialize( user_options ) {
             close_link.addEventListener( 'click', close_image_overlay_container, false );
             image_overlay_container.addEventListener( 'click', close_image_overlay_container, false );
             
-            w.addEventListener( 'scroll', function ( event ) {
-                update_image_overlay_container_height();
-            }, false );
-            
-            w.addEventListener( 'resize', function ( event ) {
-                update_image_overlay_container_height();
-            }, false );
+            w.addEventListener( 'scroll', update_image_overlay_container_height, false );
+            w.addEventListener( 'resize', update_image_overlay_container_height, false );
             
             w.scrollTo( 0, 0 );
             
