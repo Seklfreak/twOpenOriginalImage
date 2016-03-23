@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.4.8
+// @version         0.1.4.9
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -108,8 +108,13 @@ function is_firefox() {
 
 
 function is_ie() {
-    return !! ( w.navigator.userAgent.toLowerCase().match( /(?:msie|trident)/ ) );
+    return ( !! ( w.navigator.userAgent.toLowerCase().match( /(?:msie|trident)/ ) ) );
 } // end of is_ie()
+
+
+function is_bookmarklet() {
+    return ( !! ( w.jQuery ) ); // jQuery が参照可能→ブックマークレットから起動しているとみなす
+} // end of is_bookmarklet()
 
 
 function import_node( node, doc ) {
@@ -399,22 +404,23 @@ function initialize( user_options ) {
                     
                     download_link.href = img_url;
                     
-                    download_link.addEventListener( 'click', function ( event ) {
-                        event.stopPropagation();
-                        event.preventDefault();
-                        
-                        var old_iframe = target_document.querySelector( 'iframe[name="' + SCRIPT_NAME + '_download_frame' + '"]' ),
-                            iframe = import_node( download_frame_template, target_document );
-                        
-                        if ( old_iframe ) {
-                            target_document.documentElement.removeChild( old_iframe );
-                        }
-                        iframe.src = img_url;
-                        target_document.documentElement.appendChild( iframe );
-                        
-                        return false;
-                    }, false );
-                    
+                    if ( ! is_bookmarklet() ) {
+                        download_link.addEventListener( 'click', function ( event ) {
+                            event.stopPropagation();
+                            event.preventDefault();
+                            
+                            var old_iframe = target_document.querySelector( 'iframe[name="' + SCRIPT_NAME + '_download_frame' + '"]' ),
+                                iframe = import_node( download_frame_template, target_document );
+                            
+                            if ( old_iframe ) {
+                                target_document.documentElement.removeChild( old_iframe );
+                            }
+                            iframe.src = img_url;
+                            target_document.documentElement.appendChild( iframe );
+                            
+                            return false;
+                        }, false );
+                    }
                     download_link_container.appendChild( download_link );
                     img_link_container.appendChild( download_link_container );
                 }
@@ -470,8 +476,8 @@ function initialize( user_options ) {
                 event.stopPropagation();
                 event.preventDefault();
                 
-                w.removeEventListener( 'resize', update_image_overlay_container_height, false);
-                w.removeEventListener( 'scroll', update_image_overlay_container_height, false);
+                w.removeEventListener( 'resize', update_image_overlay_container_height, false );
+                w.removeEventListener( 'scroll', update_image_overlay_container_height, false );
                 
                 image_overlay_container_style.display = 'none';
                 
@@ -750,7 +756,6 @@ function initialize( user_options ) {
             } );
         } ).observe( d.body, { childList : true, subtree : true } );
         
-        
     } // end of start_inserted_node_observer()
     
     
@@ -780,16 +785,13 @@ function initialize( user_options ) {
             return ( target_tweet ) ? target_tweet.querySelector( '.' + SCRIPT_NAME + 'Button input[type="button"]' ) : null;
         } // end of get_button()
         
-        var target_tweet = d.querySelector( '.selected-stream-item div.js-stream-tweet, .selected-stream-item div.tweet' ),
+        var gallery = d.querySelector( '.Gallery' ),
+            target_tweet = ( gallery && w.getComputedStyle( gallery ).display != 'none' ) ? gallery.querySelector( 'div.js-stream-tweet, div.tweet' ) : null,
             button = get_button( target_tweet );
         
         if ( ( ! target_tweet ) || ( ! button ) ) {
-            var gallery = d.querySelector( '.Gallery' );
-            
-            if ( gallery && w.getComputedStyle( gallery ).display != 'none' ) {
-                target_tweet = gallery.querySelector( 'div.js-stream-tweet, div.tweet' );
-                button = get_button( target_tweet );
-            }
+            target_tweet = d.querySelector( '.selected-stream-item div.js-stream-tweet, .selected-stream-item div.tweet' );
+            button = get_button( target_tweet );
         }
         if ( ( ! target_tweet ) || ( ! button ) ) {
             target_tweet = d.querySelector( '.permalink-tweet' );
