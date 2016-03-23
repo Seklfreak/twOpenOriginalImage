@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.4.9
+// @version         0.1.4.10
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -404,7 +404,12 @@ function initialize( user_options ) {
                     
                     download_link.href = img_url;
                     
-                    if ( ! is_bookmarklet() ) {
+                    if ( is_bookmarklet() ) {
+                        download_link.addEventListener( 'click', function ( event ) {
+                            event.stopPropagation();
+                        }, false );
+                    }
+                    else {
                         download_link.addEventListener( 'click', function ( event ) {
                             event.stopPropagation();
                             event.preventDefault();
