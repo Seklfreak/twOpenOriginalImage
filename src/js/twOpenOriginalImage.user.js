@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.4.11
+// @version         0.1.4.12
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -58,6 +58,7 @@ var OPTIONS = {
 ,   SHOW_IN_TIMELINE : true // true: タイムラインで動作
 ,   DISPLAY_ALL_IN_ONE_PAGE : true // true: [Click] 全ての画像を同一ページで開く / [Alt]+[Click] 画像を個別に開く、false: 左記の逆の動作
 ,   DISPLAY_OVERLAY : true // true: 全ての画像を同一ページで開く際に(別タブで開かず)タイムライン上にオーバーレイする
+,   OVERRIDE_CLICK_EVENT : true // true: ツイート中の画像クリックで原寸画像を開く
 ,   DOWNLOAD_HELPER_SCRIPT_IS_VALID : true // true: ダウンロードヘルパー機能有効
 ,   OPERATION : true // true: 動作中、false: 停止中
 ,   WAIT_AFTER_OPENPAGE : 500 // Firefox でページを開いた後、画像を挿入するまでのタイムラグ(ms)
@@ -307,6 +308,14 @@ function initialize( user_options ) {
     } // end of get_scroll_top()
     
     
+    function get_element_top( element, win ) {
+        if ( ! win ) {
+            win = w;
+        }
+        return element.getBoundingClientRect().top + w.pageYOffset;
+    } // end of get_element_top()
+    
+    
     var add_open_button = ( function () {
         var header_template = d.createElement( 'h1' ),
             button_container_template = d.createElement( 'div' ),
@@ -445,6 +454,12 @@ function initialize( user_options ) {
         
         
         function show_overlay( img_urls, tweet_url, title ) {
+            if ( image_overlay_container_style.display != 'none' ) {
+                // TODO: 重複して呼ばれるケース(不正な動作)に対するガード
+                //console.error( 'show_overlay(): duplicate called' );
+                return;
+            }
+            
             var body = d.body,
                 doc = d.querySelector( 'div#doc' ),
                 gallery = d.querySelector( 'div.Gallery' ),
@@ -643,7 +658,8 @@ function initialize( user_options ) {
                     }
                     return gallery;
                 } )( tweet.parentNode ),
-                img_objects = ( gallery ) ? gallery.querySelectorAll( '.Gallery-media img.media-image' ) : null,
+                gallery_media = ( gallery ) ? gallery.querySelector( '.Gallery-media' ) : null,
+                img_objects = ( gallery_media ) ? gallery_media.querySelectorAll( 'img.media-image' ) : null,
                 img_objects = ( img_objects ) ? img_objects : tweet.querySelectorAll( '.AdaptiveMedia-photoContainer img' ),
                 action_list = tweet.querySelector( '.ProfileTweet-actionList' );
             
@@ -671,6 +687,11 @@ function initialize( user_options ) {
             button.addEventListener( 'click', function ( event ) {
                 event.stopPropagation();
                 
+                var target_img_url = button.getAttribute( 'data-target-img-url' ),
+                    target_img_urls = ( target_img_url ) ? [ target_img_url ] : img_urls.slice( 0 );
+                
+                button.removeAttribute( 'data-target-img-url' );
+                
                 if ( OPTIONS.DISPLAY_ALL_IN_ONE_PAGE ^ event.altKey ) {
                     var tweet_url = tweet.getAttribute( 'data-permalink-path' ),
                         tweet_text = tweet.querySelector( '.tweet-text' ),
@@ -680,15 +701,15 @@ function initialize( user_options ) {
                         title = tweet_text.textContent;
                     }
                     if ( OPTIONS.DISPLAY_OVERLAY ) {
-                        show_overlay( img_urls, tweet_url, title );
+                        show_overlay( target_img_urls, tweet_url, title );
                     }
                     else {
-                        open_page( img_urls, tweet_url, title );
+                        open_page( target_img_urls, tweet_url, title );
                     }
                 }
                 else {
-                    img_urls.reverse();
-                    img_urls.forEach( function ( img_url ) {
+                    target_img_urls.reverse();
+                    target_img_urls.forEach( function ( img_url ) {
                         w.open( img_url, '_blank' );
                     } );
                 }
@@ -697,6 +718,36 @@ function initialize( user_options ) {
             
             action_list.appendChild( button_container );
             
+            if ( OPTIONS.OVERRIDE_CLICK_EVENT ) {
+                if ( gallery_media ) {
+                    // TODO: ナビが覆いかぶさっている(z-index:1)ため、手前に出して画像クリックイベントの方を優先化しているが、もっとスマートな方法は無いか？
+                    gallery_media.style.zIndex = 10;
+                    gallery_media.style.pointerEvents = 'none';
+                }
+                
+                to_array( img_objects ).forEach( function ( img ) {
+                    if ( img.classList.contains( SCRIPT_NAME + '_touched' ) ) {
+                        return;
+                    }
+                    
+                    img.addEventListener( 'click', function ( event ) {
+                        event.stopPropagation();
+                        event.preventDefault();
+                        if ( img.src ) {
+                            button.setAttribute( 'data-target-img-url', img.src.replace( /:\w*$/, '' ) + ':orig' );
+                            button.click();
+                        }
+                        
+                        return false;
+                    }, false );
+                    
+                    if ( img.classList.contains( 'media-image' ) ) {
+                        img.style.pointerEvents = 'auto';
+                    }
+                    
+                    img.classList.add( SCRIPT_NAME + '_touched' );
+                } );
+            }
             return button_container;
         } // end of add_open_button()
         
@@ -905,7 +956,7 @@ function initialize( user_options ) {
                 var original_style_display = node.style.display;
                 
                 node.style.display = 'none';
-                setTimeout( function() {
+                setTimeout( function () {
                     node.style.display = original_style_display;
                 }, 100 );
             }

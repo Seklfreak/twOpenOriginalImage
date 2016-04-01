@@ -78,6 +78,7 @@ var twOpenOriginalImage_chrome_init = ( function() {
         ,   SHOW_IN_TIMELINE : get_bool
         ,   DISPLAY_ALL_IN_ONE_PAGE : get_bool
         ,   DISPLAY_OVERLAY : get_bool
+        ,   OVERRIDE_CLICK_EVENT : get_bool
         ,   DOWNLOAD_HELPER_SCRIPT_IS_VALID : get_bool
         ,   OPERATION : get_bool
         ,   WAIT_AFTER_OPENPAGE : get_int

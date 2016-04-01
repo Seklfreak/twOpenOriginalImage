@@ -44,6 +44,9 @@
 ,   "DISPLAY_OVERLAY" : {
         "message" : "Overlay"
     }
+,   "OVERRIDE_CLICK_EVENT" : {
+        "message" : "Display image on click thumbnail of tweet"
+    }
 ,   "BUTTON_TEXT_HEADER" : {
         "message" : "Button Text"
     }

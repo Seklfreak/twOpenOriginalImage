@@ -44,6 +44,9 @@
 ,   "DISPLAY_OVERLAY" : {
         "message" : "オーバーレイ（タイムラインと同一のタブ上で開く）"
     }
+,   "OVERRIDE_CLICK_EVENT" : {
+        "message" : "ツイート上のサムネイル画像クリックで開く"
+    }
 ,   "BUTTON_TEXT_HEADER" : {
         "message" : "画像を開くボタンの文字列"
     }
