@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.4.13
+// @version         0.1.4.14
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -732,19 +732,34 @@ function initialize( user_options ) {
                 
                 to_array( img_objects ).forEach( function ( img ) {
                     if ( img.classList.contains( SCRIPT_NAME + '_touched' ) ) {
-                        return;
+                        var cutsom_event = document.createEvent( 'HTMLEvents' );
+                        
+                        cutsom_event.initEvent( 'remove-image-events', true, false );
+                        img.dispatchEvent( cutsom_event );
+                        img.classList.remove( SCRIPT_NAME + '_touched' );
                     }
                     
-                    img.addEventListener( 'click', function ( event ) {
+                    function open_target_image( event ) {
                         event.stopPropagation();
                         event.preventDefault();
+                        
                         if ( img.src ) {
                             button.setAttribute( 'data-target-img-url', img.src.replace( /:\w*$/, '' ) + ':orig' );
                             button.click();
                         }
                         
                         return false;
-                    }, false );
+                    } // end of open_target_image()
+                    
+                    
+                    function remove_image_events( event ) {
+                        img.removeEventListener( 'remove-image-events', remove_image_events, false );
+                        img.removeEventListener( 'click', open_target_image, false );
+                    } // end of remove_image_events()
+                    
+                    
+                    img.addEventListener( 'click', open_target_image, false );
+                    img.addEventListener( 'remove-image-events', remove_image_events, false );
                     
                     if ( img.classList.contains( 'media-image' ) ) {
                         img.style.pointerEvents = 'auto';
