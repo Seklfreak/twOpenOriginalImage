@@ -56,6 +56,9 @@
 ,   "DOWNLOAD_HELPER_IS_VALID_HEADER" : {
         "message" : "Helper to download images"
     }
+,   "ENABLED_ON_TWEETDECK" : {
+        "message" : "On TweetDeck"
+    }
 ,   "DOWNLOAD_ORIGINAL_IMAGE" : {
         "message" : "Download original image"
     }

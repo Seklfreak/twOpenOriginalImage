@@ -76,6 +76,7 @@ var twOpenOriginalImage_chrome_init = ( function() {
     var option_name_to_function_map = {
             SHOW_IN_DETAIL_PAGE : get_bool
         ,   SHOW_IN_TIMELINE : get_bool
+        ,   ENABLED_ON_TWEETDECK : get_bool
         ,   DISPLAY_ALL_IN_ONE_PAGE : get_bool
         ,   DISPLAY_OVERLAY : get_bool
         ,   OVERRIDE_CLICK_EVENT : get_bool

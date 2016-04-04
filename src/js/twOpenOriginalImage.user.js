@@ -2,10 +2,11 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.4.14
+// @version         0.1.5.1
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
+// @include         https://tweetdeck.twitter.com/*
 // @description     Open images in original size on Twitter.
 // ==/UserScript==
 /*
@@ -56,6 +57,7 @@ w[ SCRIPT_NAME + '_touched' ] = true;
 var OPTIONS = {
     SHOW_IN_DETAIL_PAGE : true // true: 詳細ページで動作
 ,   SHOW_IN_TIMELINE : true // true: タイムラインで動作
+,   ENABLED_ON_TWEETDECK : true // true: TweetDeck 上で有効
 ,   DISPLAY_ALL_IN_ONE_PAGE : true // true: [Click] 全ての画像を同一ページで開く / [Alt]+[Click] 画像を個別に開く、false: 左記の逆の動作
 ,   DISPLAY_OVERLAY : true // true: 全ての画像を同一ページで開く際に(別タブで開かず)タイムライン上にオーバーレイする
 ,   OVERRIDE_CLICK_EVENT : true // true: ツイート中の画像クリックで原寸画像を開く
@@ -103,19 +105,71 @@ switch ( LANGUAGE ) {
 }
 
 
-function is_firefox() {
-    return ( 0 <= w.navigator.userAgent.toLowerCase().indexOf( 'firefox' ) );
-} // end of is_firefox()
+var is_firefox = ( function () {
+    var flag = ( 0 <= w.navigator.userAgent.toLowerCase().indexOf( 'firefox' ) );
+    
+    return function () {
+        return flag;
+    };
+} )(); // end of is_firefox()
 
 
-function is_ie() {
-    return ( !! ( w.navigator.userAgent.toLowerCase().match( /(?:msie|trident)/ ) ) );
-} // end of is_ie()
+var is_ie = ( function () {
+    var flag = ( !! ( w.navigator.userAgent.toLowerCase().match( /(?:msie|trident)/ ) ) );
+    
+    return function () {
+        return flag;
+    };
+} )(); // end of is_ie()
 
 
 function is_bookmarklet() {
     return ( !! ( w.jQuery ) ); // jQuery が参照可能→ブックマークレットから起動しているとみなす
 } // end of is_bookmarklet()
+
+
+var is_tweetdeck = ( function () {
+    var flag = ( !! ( w.location.href.match( /^https?:\/\/tweetdeck\.twitter\.com/ ) ) );
+    
+    return function () {
+        return flag;
+    };
+} )(); // end of is_tweetdeck()
+
+
+function get_img_orig_url( img_url ) {
+    return img_url.replace( /:\w*$/, '' ) + ':orig';
+} // end of get_img_orig_url()
+
+
+function has_some_classes( node, class_list ) {
+    if ( ! Array.isArray( class_list ) ) {
+        class_list = [ class_list ];
+    }
+    
+    return class_list.some( function ( class_name, index, self ) {
+        return node.classList.contains( class_name );
+    } );
+} // end of has_some_classes()
+
+
+function search_ancestor( node, class_list, contains_self ) {
+    var ancestor = null;
+    
+    if ( ! contains_self ) {
+        node = node.parentNode;
+    }
+    
+    while ( node && ( node.nodeType == 1 ) ) {
+        if ( has_some_classes( node, class_list ) ) {
+            ancestor = node;
+            break;
+        }
+        node = node.parentNode;
+    }
+    return ancestor;
+    
+} // end of search_ancestor()
 
 
 function import_node( node, doc ) {
@@ -241,6 +295,10 @@ function initialize( user_options ) {
         return;
     }
     
+    if ( is_tweetdeck() && ( ! OPTIONS.ENABLED_ON_TWEETDECK ) ) {
+        return;
+    }
+    
     if ( initialize_download_helper() !== false ) {
         return;
     }
@@ -346,11 +404,14 @@ function initialize( user_options ) {
         
         header_style.fontSize = '16px';
         header_style.margin = '0 0 8px';
-        header_style.padding = '8px 8px 4px';
+        //header_style.padding = '8px 8px 4px';
+        header_style.padding = '6px 8px 2px';
+        header_style.height = '16px';
         
         button.type =  'button';
         button_style.padding = '2px 6px';
         button_style.color = 'gray';
+        button_style.background = 'white';
         if ( OPTIONS.DISPLAY_ALL_IN_ONE_PAGE ) {
             button.title = escape_html( '[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE + ' / ' + alt_text + '+[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE );
         }
@@ -469,7 +530,7 @@ function initialize( user_options ) {
                 header = import_node( header_template ),
                 
                 body_style = body.style,
-                doc_style = doc.style,
+                doc_style = ( doc ) ? doc.style : null,
                 gallery_style = ( gallery ) ? gallery.style : null,
                 gallery_overlay_style = ( gallery_overlay ) ? gallery_overlay.style : null,
                 permalink_overlay_style = ( permalink_overlay ) ? permalink_overlay.style : null,
@@ -481,14 +542,16 @@ function initialize( user_options ) {
                 saved_body_position = body_style.position,
                 saved_body_overflow = body_style.overflow,
                 saved_body_marginRight = body_style.marginRight,
-                saved_doc_overflow = doc_style.overflow,
-                saved_doc_height = doc_style.height,
-                saved_doc_marginTop = doc_style.marginTop;
+                saved_doc_overflow = ( doc_style ) ? doc_style.overflow : null,
+                saved_doc_height = ( doc_style ) ? doc_style.height : null,
+                saved_doc_marginTop = ( doc_style ) ? doc_style.marginTop : null;
             
             function update_image_overlay_container_height( event ) {
                 var height = Math.max( image_container.offsetHeight + 64, w.innerHeight + get_scroll_top() );
                 
-                doc_style.height = ( height + saved_scrollTop ) + 'px';
+                if ( doc_style ) {
+                    doc_style.height = ( height + saved_scrollTop ) + 'px';
+                }
                 image_overlay_container_style.height = height + 'px';
             } // end of update_image_overlay_container_height()
             
@@ -507,10 +570,11 @@ function initialize( user_options ) {
                 
                 clear_node( image_container );
                 
-                doc_style.height = saved_doc_height;
-                doc_style.marginTop = saved_doc_marginTop;
-                doc_style.overflow = saved_doc_overflow;
-                
+                if ( doc_style ) {
+                    doc_style.height = saved_doc_height;
+                    doc_style.marginTop = saved_doc_marginTop;
+                    doc_style.overflow = saved_doc_overflow;
+                }
                 body_style.marginRight = saved_body_marginRight;
                 body_style.overflow = saved_body_overflow;
                 body_style.position = saved_body_position;
@@ -544,8 +608,10 @@ function initialize( user_options ) {
             body_style.overflow = 'auto';
             body_style.marginRight = '0';
             
-            doc_style.overflow = 'hidden';
-            doc_style.marginTop = -saved_scrollTop + 'px';
+            if ( doc_style ) {
+                doc_style.overflow = 'hidden';
+                doc_style.marginTop = -saved_scrollTop + 'px';
+            }
             update_image_overlay_container_height();
             
             image_overlay_container_style.display = 'block';
@@ -653,20 +719,17 @@ function initialize( user_options ) {
                 return null;
             }
             
-            var gallery = ( function ( check_node, gallery ) {
-                    while ( check_node && ( check_node.nodeType == 1 ) ) {
-                        if ( check_node.classList.contains( 'Gallery' ) ) {
-                            gallery = check_node;
-                            break;
-                        }
-                        check_node = check_node.parentNode;
-                    }
-                    return gallery;
-                } )( tweet.parentNode ),
-                gallery_media = ( gallery ) ? gallery.querySelector( '.Gallery-media' ) : null,
-                img_objects = ( gallery_media ) ? gallery_media.querySelectorAll( 'img.media-image' ) : null,
-                img_objects = ( img_objects ) ? img_objects : tweet.querySelectorAll( '.AdaptiveMedia-photoContainer img' ),
-                action_list = tweet.querySelector( '.ProfileTweet-actionList' );
+            var gallery = search_ancestor( tweet, [ 'Gallery', 'js-modal-panel' ] );
+            
+            if ( gallery && gallery.querySelector( '.' + button_container_classname ) ) {
+                return null;
+            }
+            
+            var gallery_media = ( gallery ) ? gallery.querySelector( '.Gallery-media, .js-embeditem' ) : null,
+                img_objects = ( gallery_media ) ? gallery_media.querySelectorAll( 'img.media-image, img.media-img' ) : null,
+                img_objects = ( img_objects ) ? img_objects : tweet.querySelectorAll( '.AdaptiveMedia-photoContainer img, a.js-media-image-link img.media-img, a.js-media-image-link[style]' ),
+                action_list = ( gallery_media ) ? gallery_media.querySelector( '.js-media-preview-container' ) : null,
+                action_list = ( action_list ) ? action_list : tweet.querySelector( '.ProfileTweet-actionList, footer' );
             
             if ( ( img_objects.length <= 0 ) || ( ! action_list ) ) {
                 return null;
@@ -676,9 +739,17 @@ function initialize( user_options ) {
             
             to_array( img_objects ).forEach( function ( img ) {
                 if ( img.src ) {
-                    var img_url = img.src.replace( /:\w*$/, '' ) + ':orig';
+                    var img_url = get_img_orig_url( img.src );
                     
                     img_urls.push( img_url );
+                }
+                else if ( img.href ) {
+                    var img_url = img.style.backgroundImage && img.style.backgroundImage.match( /url\(['"\s]*(.*?)['"\s]*\)/ )[1];
+                    
+                    if ( img_url ) {
+                        img_url = get_img_orig_url( img_url );
+                        img_urls.push( img_url );
+                    }
                 }
             } );
             
@@ -698,13 +769,11 @@ function initialize( user_options ) {
                 button.removeAttribute( 'data-target-img-url' );
                 
                 if ( OPTIONS.DISPLAY_ALL_IN_ONE_PAGE ^ event.altKey ) {
-                    var tweet_url = tweet.getAttribute( 'data-permalink-path' ),
+                    var tweet_link = tweet.querySelector( 'a[rel="url"]' ),
+                        tweet_url = tweet.getAttribute( 'data-permalink-path' ) || ( tweet_link && tweet_link.href ),
                         tweet_text = tweet.querySelector( '.tweet-text' ),
-                        title;
+                        title = ( tweet_text ) ? tweet_text.textContent : '';
                     
-                    if ( tweet_text ) {
-                        title = tweet_text.textContent;
-                    }
                     if ( OPTIONS.DISPLAY_OVERLAY ) {
                         show_overlay( target_img_urls, tweet_url, title );
                     }
@@ -721,16 +790,25 @@ function initialize( user_options ) {
                 return false;
             }, false );
             
-            action_list.appendChild( button_container );
+            if ( action_list.tagName == 'FOOTER' ) {
+                action_list.insertBefore( button_container, action_list.firstChild );
+            }
+            else {
+                action_list.appendChild( button_container );
+            }
             
             if ( OPTIONS.OVERRIDE_CLICK_EVENT ) {
-                if ( gallery_media ) {
+                if ( gallery_media && ( ! is_tweetdeck() ) ) {
                     // TODO: ナビが覆いかぶさっている(z-index:1)ため、手前に出して画像クリックイベントの方を優先化しているが、もっとスマートな方法は無いか？
                     gallery_media.style.zIndex = 10;
                     gallery_media.style.pointerEvents = 'none';
                 }
                 
                 to_array( img_objects ).forEach( function ( img ) {
+                    if ( is_tweetdeck() && ! gallery_media ) {
+                        return;
+                    }
+                    
                     if ( img.classList.contains( SCRIPT_NAME + '_touched' ) ) {
                         var cutsom_event = document.createEvent( 'HTMLEvents' );
                         
@@ -744,7 +822,7 @@ function initialize( user_options ) {
                         event.preventDefault();
                         
                         if ( img.src ) {
-                            button.setAttribute( 'data-target-img-url', img.src.replace( /:\w*$/, '' ) + ':orig' );
+                            button.setAttribute( 'data-target-img-url', get_img_orig_url( img.src ) );
                             button.click();
                         }
                         
@@ -779,11 +857,23 @@ function initialize( user_options ) {
         if ( ( ! node ) || ( node.nodeType != 1 ) ) {
             return false;
         }
+        var tweet_list = to_array( node.querySelectorAll( 'div.js-stream-tweet, div.tweet, div.js-tweet' ) );
         
-        var tweet_list = to_array( node.querySelectorAll( 'div.js-stream-tweet, div.tweet' ) );
-        
-        if ( node.tagName == 'DIV' && ( ' ' + node.className + ' ' ).match( /(?: js-stream-tweet | tweet )/ ) ) {
-            tweet_list.push( node );
+        if ( node.tagName == 'DIV' ) {
+            if ( has_some_classes( node, [ 'js-stream-tweet', 'tweet', 'js-tweet' ] ) ) {
+                tweet_list.push( node );
+            }
+            else {
+                var ancestor = has_some_classes( node, [ 'js-media-preview-container' ] ) && search_ancestor( node, [ 'js-modal-panel' ] );
+                
+                if ( ancestor ) {
+                    var tweet = ancestor.querySelector( 'div.js-stream-tweet, div.tweet, div.js-tweet' );
+                    
+                    if ( tweet ) {
+                        tweet_list.push( tweet );
+                    }
+                }
+            }
         }
         
         tweet_list.forEach( function ( tweet ) {
@@ -801,27 +891,41 @@ function initialize( user_options ) {
         if ( ( ! node ) || ( node.nodeType != 1 ) ) {
             return false;
         }
-        var help_dialog = ( node.getAttribute( 'id' ) == 'keyboard-shortcut-dialog' ) ? node : node.querySelector( 'keyboard-shortcut-dialog' );
-        if ( ( ! help_dialog ) || ( help_dialog.querySelector( 'tr.' + SCRIPT_NAME + '_key_help' ) ) ) {
+        var help_dialog = ( ( node.getAttribute( 'id' ) == 'keyboard-shortcut-dialog' ) || ( node.classList.contains( 'keyboard-shortcut-list-modal' ) ) ) ? node : node.querySelector( 'keyboard-shortcut-dialog, keyboard-shortcut-list-modal' );
+        if ( ( ! help_dialog ) || ( help_dialog.querySelector( '.' + SCRIPT_NAME + '_key_help' ) ) ) {
             return false;
         }
         
-        var modal_table_tbody = help_dialog.querySelector( 'table.modal-table tbody' ),
-            tr_template = modal_table_tbody.querySelectorAll( 'tr' )[0],
-            tr = tr_template.cloneNode( true ),
-            shortcut_key = tr.querySelector( '.shortcut .sc-key' ),
-            shortcut_label = tr.querySelector( '.shortcut-label' );
-        
-        tr.classList.add( SCRIPT_NAME + '_key_help' );
-        
-        clear_node( shortcut_key );
-        clear_node( shortcut_label );
-        
-        shortcut_key.appendChild( d.createTextNode( OPTIONS.HELP_KEYCHAR_DISPLAY_IMAGES ) );
-        shortcut_label.appendChild( d.createTextNode( OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES ) );
-        
-        modal_table_tbody.appendChild( tr );
-        
+        if ( is_tweetdeck() ) {
+            var keyboard_shortcut_list = help_dialog.querySelector( 'dl.keyboard-shortcut-list' ),
+                dd = d.createElement( 'dd' ),
+                span = d.createElement( 'span' );
+            
+            span.className = 'text-like-keyboard-key';
+            span.appendChild( d.createTextNode( OPTIONS.HELP_KEYCHAR_DISPLAY_IMAGES.toUpperCase() ) );
+            dd.className = 'keyboard-shortcut-definition';
+            dd.appendChild( span );
+            dd.appendChild( d.createTextNode( ' ' + OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES ) );
+            
+            keyboard_shortcut_list.appendChild( dd );
+        }
+        else {
+            var modal_table_tbody = help_dialog.querySelector( 'table.modal-table tbody' ),
+                tr_template = modal_table_tbody.querySelectorAll( 'tr' )[0],
+                tr = tr_template.cloneNode( true ),
+                shortcut_key = tr.querySelector( '.shortcut .sc-key' ),
+                shortcut_label = tr.querySelector( '.shortcut-label' );
+            
+            tr.classList.add( SCRIPT_NAME + '_key_help' );
+            
+            clear_node( shortcut_key );
+            clear_node( shortcut_label );
+            
+            shortcut_key.appendChild( d.createTextNode( OPTIONS.HELP_KEYCHAR_DISPLAY_IMAGES ) );
+            shortcut_label.appendChild( d.createTextNode( OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES ) );
+            
+            modal_table_tbody.appendChild( tr );
+        }
         return true;
     } // end of check_help_dialog()
     
@@ -869,16 +973,16 @@ function initialize( user_options ) {
             return false;
         }
         
-        function get_button( target_tweet ) {
-            return ( target_tweet ) ? target_tweet.querySelector( '.' + SCRIPT_NAME + 'Button input[type="button"]' ) : null;
+        function get_button( ancestor ) {
+            return ( ancestor ) ? ancestor.querySelector( '.' + SCRIPT_NAME + 'Button input[type="button"]' ) : null;
         } // end of get_button()
         
-        var gallery = d.querySelector( '.Gallery' ),
-            target_tweet = ( gallery && w.getComputedStyle( gallery ).display != 'none' ) ? gallery.querySelector( 'div.js-stream-tweet, div.tweet' ) : null,
-            button = get_button( target_tweet );
+        var gallery = d.querySelector( '.Gallery, .js-modal-panel' ),
+            target_tweet = ( gallery && w.getComputedStyle( gallery ).display != 'none' ) ? gallery.querySelector( 'div.js-stream-tweet, div.tweet, div.js-tweet' ) : null,
+            button = get_button( ( gallery && gallery.classList.contains( 'js-modal-panel' ) ) ? gallery : target_tweet );
         
         if ( ( ! target_tweet ) || ( ! button ) ) {
-            target_tweet = d.querySelector( '.selected-stream-item div.js-stream-tweet, .selected-stream-item div.tweet' );
+            target_tweet = d.querySelector( '.selected-stream-item div.js-stream-tweet, .selected-stream-item div.tweet, .is-selected-tweet div.tweet, .is-selected-tweet div.js-tweet' );
             button = get_button( target_tweet );
         }
         if ( ( ! target_tweet ) || ( ! button ) ) {
