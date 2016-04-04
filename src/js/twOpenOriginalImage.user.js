@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.5.1
+// @version         0.1.5.2
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -47,7 +47,7 @@ THE SOFTWARE.
 
 var SCRIPT_NAME = 'twOpenOriginalImage';
 
-if ( w[SCRIPT_NAME + '_touched'] ) {
+if ( w[ SCRIPT_NAME + '_touched' ] ) {
     return;
 }
 w[ SCRIPT_NAME + '_touched' ] = true;
@@ -124,7 +124,7 @@ var is_ie = ( function () {
 
 
 function is_bookmarklet() {
-    return ( !! ( w.jQuery ) ); // jQuery が参照可能→ブックマークレットから起動しているとみなす
+    return ( !! ( w[ SCRIPT_NAME + '_bookmarklet' ] ) );
 } // end of is_bookmarklet()
 
 
@@ -229,11 +229,11 @@ var create_download_link = ( function () {
         
         link.addEventListener( 'mouseover', function ( event ) {
             link_style.borderColor = 'red';
-        } );
+        }, false );
         
         link.addEventListener( 'mouseout', function ( event ) {
             link_style.borderColor = '#e1e8ed';
-        } );
+        }, false );
         
         link.appendChild( doc.createTextNode( OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT ) );
         
@@ -266,6 +266,7 @@ function initialize_download_helper() {
         // 本スクリプトによりダウンロード用 IFRAME 経由で開いた場合
         d.documentElement.appendChild( link );
         link.click(); // ダウンロード開始
+        
         return true;
     }
     
@@ -727,7 +728,7 @@ function initialize( user_options ) {
             
             var gallery_media = ( gallery ) ? gallery.querySelector( '.Gallery-media, .js-embeditem' ) : null,
                 img_objects = ( gallery_media ) ? gallery_media.querySelectorAll( 'img.media-image, img.media-img' ) : null,
-                img_objects = ( img_objects ) ? img_objects : tweet.querySelectorAll( '.AdaptiveMedia-photoContainer img, a.js-media-image-link img.media-img, a.js-media-image-link[style]' ),
+                img_objects = ( img_objects ) ? img_objects : tweet.querySelectorAll( '.AdaptiveMedia-photoContainer img, a.js-media-image-link img.media-img, div.js-media-preview-container:not(.is-video) a.js-media-image-link[style]' ),
                 action_list = ( gallery_media ) ? gallery_media.querySelector( '.js-media-preview-container' ) : null,
                 action_list = ( action_list ) ? action_list : tweet.querySelector( '.ProfileTweet-actionList, footer' );
             
@@ -857,6 +858,7 @@ function initialize( user_options ) {
         if ( ( ! node ) || ( node.nodeType != 1 ) ) {
             return false;
         }
+        
         var tweet_list = to_array( node.querySelectorAll( 'div.js-stream-tweet, div.tweet, div.js-tweet' ) );
         
         if ( node.tagName == 'DIV' ) {
