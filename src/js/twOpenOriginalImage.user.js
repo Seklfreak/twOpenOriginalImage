@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.5.3
+// @version         0.1.5.4
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -716,7 +716,10 @@ function initialize( user_options ) {
         
         
         function add_open_button( tweet ) {
-            if ( tweet.querySelector( '.' + button_container_classname ) ) {
+            var tweet_container = search_ancestor( tweet, [ 'js-stream-item' ] ),
+                tweet_container = ( tweet_container ) ? tweet_container : tweet;
+            
+            if ( tweet_container.querySelector( '.' + button_container_classname ) ) {
                 return null;
             }
             
@@ -728,9 +731,9 @@ function initialize( user_options ) {
             
             var gallery_media = ( gallery ) ? gallery.querySelector( '.Gallery-media, .js-embeditem' ) : null,
                 img_objects = ( gallery_media ) ? gallery_media.querySelectorAll( 'img.media-image, img.media-img' ) : null,
-                img_objects = ( img_objects ) ? img_objects : tweet.querySelectorAll( '.AdaptiveMedia-photoContainer img, a.js-media-image-link img.media-img, div.media-preview > div:not(.is-video) a.js-media-image-link[rel="mediaPreview"]' ),
+                img_objects = ( img_objects && ( 0 < img_objects.length ) ) ? img_objects : tweet_container.querySelectorAll( '.AdaptiveMedia-photoContainer img, a.js-media-image-link img.media-img, div.js-media > div:not(.is-video) a.js-media-image-link[rel="mediaPreview"]' ),
                 action_list = ( gallery_media ) ? gallery_media.querySelector( '.js-media-preview-container' ) : null,
-                action_list = ( action_list ) ? action_list : tweet.querySelector( '.ProfileTweet-actionList, footer' );
+                action_list = ( action_list ) ? action_list : tweet_container.querySelector( '.ProfileTweet-actionList, footer' );
             
             if ( ( img_objects.length <= 0 ) || ( ! action_list ) ) {
                 return null;
@@ -791,8 +794,13 @@ function initialize( user_options ) {
                 return false;
             }, false );
             
-            if ( action_list.tagName == 'FOOTER' ) {
-                action_list.insertBefore( button_container, action_list.firstChild );
+            if ( is_tweetdeck() ) {
+                if ( action_list.tagName == 'FOOTER' && search_ancestor( img_objects[ 0 ], [ 'js-tweet', 'tweet' ] ) ) {
+                    action_list.insertBefore( button_container, action_list.firstChild );
+                }
+                else {
+                    action_list.appendChild( button_container );
+                }
             }
             else {
                 action_list.appendChild( button_container );
