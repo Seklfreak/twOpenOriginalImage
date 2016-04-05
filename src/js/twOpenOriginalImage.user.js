@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.5.4
+// @version         0.1.5.5
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -491,6 +491,7 @@ function initialize( user_options ) {
                             
                             if ( old_iframe ) {
                                 target_document.documentElement.removeChild( old_iframe );
+                                old_iframe = null;
                             }
                             iframe.src = img_url;
                             target_document.documentElement.appendChild( iframe );
@@ -717,16 +718,22 @@ function initialize( user_options ) {
         
         function add_open_button( tweet ) {
             var tweet_container = search_ancestor( tweet, [ 'js-stream-item' ] ),
-                tweet_container = ( tweet_container ) ? tweet_container : tweet;
+                tweet_container = ( tweet_container ) ? tweet_container : tweet,
+                old_button = tweet_container.querySelector( '.' + button_container_classname );
             
-            if ( tweet_container.querySelector( '.' + button_container_classname ) ) {
-                return null;
+            if ( old_button ) {
+                old_button.parentNode.removeChild( old_button );
+                old_button = null;
             }
             
             var gallery = search_ancestor( tweet, [ 'Gallery', 'js-modal-panel' ] );
             
-            if ( gallery && gallery.querySelector( '.' + button_container_classname ) ) {
-                return null;
+            if ( gallery ) {
+                old_button = gallery.querySelector( '.' + button_container_classname );
+                if ( old_button ) {
+                    old_button.parentNode.removeChild( old_button );
+                    old_button = null;
+                }
             }
             
             var gallery_media = ( gallery ) ? gallery.querySelector( '.Gallery-media, .js-embeditem' ) : null,
