@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.5.6
+// @version         0.1.5.7
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -222,6 +222,7 @@ var create_download_link = ( function () {
     var link_template = d.createElement( 'a' ),
         link_style = link_template.style;
     
+    link_template.className = 'download-link';
     link_style.display = 'inline-block';
     link_style.fontWeight = 'normal';
     link_style.fontSize = '12px';
@@ -465,6 +466,7 @@ function initialize( user_options ) {
                 var img_link_container_template = d.createElement( 'div' ),
                     img_link_container_style = img_link_container_template.style;
                 
+                img_link_container_template.className = 'image-link-container';
                 img_link_container_style.clear = 'both';
                 img_link_container_style.margin = '0 0 8px 0';
                 img_link_container_style.textAlign = 'center';
@@ -476,6 +478,7 @@ function initialize( user_options ) {
                 var download_link_container_template = d.createElement( 'div' ),
                     download_link_container_style = download_link_container_template.style;
                 
+                download_link_container_template.className = 'download-link-container';
                 download_link_container_style.margin = '0 0 1px 0';
                 
                 return download_link_container_template;
@@ -494,14 +497,14 @@ function initialize( user_options ) {
             } )(),
             
             image_overlay = ( function () {
-                var image_overlay_image_container = ( function () {
+                var top_offset = 26,
+                    image_overlay_image_container = ( function () {
                         var image_overlay_image_container = d.createElement( 'div' ),
                             image_overlay_image_container_style = image_overlay_image_container.style;
                         
                         image_overlay_image_container.className = SCRIPT_NAME + '_image_overlay_image_container';
                         image_overlay_image_container_style.width = '100%';
                         image_overlay_image_container_style.height = 'auto';
-                        //image_overlay_image_container_style.marginTop = '26px';
                         
                         return image_overlay_image_container;
                     } )(),
@@ -520,7 +523,7 @@ function initialize( user_options ) {
                         image_overlay_container_style.right = 0;
                         image_overlay_container_style.overflow = 'auto';
                         image_overlay_container_style.zIndex = 10000;
-                        image_overlay_container_style.padding = '26px 0 32px 0';
+                        image_overlay_container_style.padding = top_offset + 'px 0 32px 0';
                         image_overlay_container_style.background = 'rgba( 0, 0, 0, 0.8 )';
                         
                         image_overlay_container.appendChild( image_overlay_image_container );
@@ -564,13 +567,71 @@ function initialize( user_options ) {
                         
                         
                         function image_overlay_container_page_step( direction ) {
-                            if ( ! direction ) {
-                                direction = 1;
-                            }
-                            image_overlay_container_smooth_scroll( image_overlay_container.clientHeight - 24, direction * OPTIONS.SMOOTH_SCROLL_STEP );
+                            var direction = ( direction ) ? direction : 1;
+                            
+                            image_overlay_container_smooth_scroll( image_overlay_container.clientHeight, direction * OPTIONS.SMOOTH_SCROLL_STEP - top_offset );
                         
                         } // end of image_overlay_container_scroll_step()
                         
+                        
+                        function image_overlay_container_image_step( direction ) {
+                            var image_link_containers = to_array( image_overlay_container.querySelectorAll( '.image-link-container' ) ),
+                                direction = ( direction ) ? direction : 1,
+                                current_index = 0;
+                            
+                            if ( image_link_containers.length <= 0 ) {
+                                return;
+                            }
+                            
+                            image_link_containers.forEach( function ( image_link_container, index ) {
+                                if ( image_link_container.classList.contains( 'current' ) ) {
+                                    image_link_container.classList.remove( 'current' );
+                                    image_link_container.style.background = 'transparent';
+                                    
+                                    current_index = index + direction;
+                                    if ( image_link_containers.length <= current_index ) {
+                                        current_index = 0;
+                                    }
+                                    else if ( current_index < 0 ) {
+                                        current_index = image_link_containers.length + current_index;
+                                    }
+                                    
+                                    var image_link = image_link_container.querySelector(  '.image-link' ),
+                                        download_link = image_link_container.querySelector( '.download-link' );
+                                    
+                                    if ( download_link ) {
+                                        download_link.style.background = '#fff';
+                                    }
+                                }
+                            } );
+                            
+                            var current_container = image_link_containers[ current_index ],
+                                download_link = current_container.querySelector( '.download-link' ),
+                                image_link = current_container.querySelector( '.image-link' ),
+                                current_container_top = current_container.getBoundingClientRect().top - top_offset,
+                                current_scroll_top = image_overlay_container.scrollTop,
+                                scroll_height = Math.abs( current_container_top ),
+                                scroll_direction = ( current_container_top < 0 ) ? -1 : 1;
+                            
+                            current_container.classList.add( 'current' );
+                            //current_container.style.background = 'rgba( 0, 255, 255, 0.1 )';
+                            
+                            if ( download_link ) {
+                                download_link.style.background = 'lightyellow';
+                            }
+                            
+                            image_overlay_container_smooth_scroll( scroll_height, scroll_direction * OPTIONS.SMOOTH_SCROLL_STEP );
+                            
+                        } // end of image_overlay_container_image_step()
+                        
+                        
+                        function image_overlay_container_download_current_image() {
+                            var download_link = image_overlay_container.querySelector( '.image-link-container.current .download-link' );
+                            
+                            if ( download_link ) {
+                                download_link.click();
+                            }
+                        } // end of image_overlay_container_download_current_image()
                         
                         image_overlay_container.addEventListener( 'scroll-to-top', function () {
                             clear_timerid_list();
@@ -610,6 +671,21 @@ function initialize( user_options ) {
                         image_overlay_container.addEventListener( 'page-down', function () {
                             clear_timerid_list();
                             image_overlay_container_page_step();
+                        }, false );
+                        
+                        image_overlay_container.addEventListener( 'image-next', function () {
+                            clear_timerid_list();
+                            image_overlay_container_image_step();
+                        }, false );
+                        
+                        image_overlay_container.addEventListener( 'image-prev', function () {
+                            clear_timerid_list();
+                            image_overlay_container_image_step( -1 );
+                        }, false );
+                        
+                        image_overlay_container.addEventListener( 'download-image', function () {
+                            clear_timerid_list();
+                            image_overlay_container_download_current_image();
                         }, false );
                         
                         d.body.appendChild( image_overlay_container );
@@ -667,6 +743,7 @@ function initialize( user_options ) {
             if ( ! target_document ) {
                 target_document = d;
             }
+            
             img_urls.forEach( function ( img_url ) {
                 var img = import_node( img_template, target_document ),
                     link = import_node( link_template, target_document ),
@@ -705,12 +782,16 @@ function initialize( user_options ) {
                     img_link_container.appendChild( download_link_container );
                 }
                 
+                img.className = 'original-image';
+                
                 img.addEventListener( 'load', function ( event ) {
                     img.setAttribute( 'width', img.naturalWidth );
                     img.setAttribute( 'height', img.naturalHeight );
                 }, false );
                 
                 img.src = link.href = img_url;
+                
+                link.className = 'image-link';
                 link.appendChild( img );
                 link.addEventListener( 'click', function ( event ) {
                     event.stopPropagation();
@@ -730,14 +811,17 @@ function initialize( user_options ) {
                 return;
             }
             
-            var body = d.body,
+            var html_element = d.querySelector( 'html' ),
+                body = d.body,
                 
                 image_overlay_container_style = image_overlay_container.style,
                 image_overlay_header_style = image_overlay_header.style,
+                html_style = html_element.style,
                 body_style = body.style,
                 
+                saved_html_overflowY = html_style.overflowY,
                 saved_body_position = body_style.position,
-                saved_body_overflow = body_style.overflow,
+                saved_body_overflowY = body_style.overflowY,
                 saved_body_marginRight = body_style.marginRight;
             
             
@@ -750,8 +834,10 @@ function initialize( user_options ) {
                 image_overlay_container_style.display = 'none';
                 image_overlay_header_style.display = 'none';
                 body_style.marginRight = saved_body_marginRight;
-                body_style.overflow = saved_body_overflow;
-                
+                body_style.overflowY = saved_body_overflowY;
+                if ( is_tweetdeck() ) {
+                    html_style.overflowY = saved_html_overflowY;
+                }
                 image_overlay_container.removeEventListener( 'click', close_image_overlay_container, false );
                 image_overlay_header.removeEventListener( 'click', close_image_overlay_container, false );
                 image_overlay_close_link.removeEventListener( 'click', close_image_overlay_container, false );
@@ -771,12 +857,16 @@ function initialize( user_options ) {
             image_overlay_header.addEventListener( 'click', close_image_overlay_container, false );
             image_overlay_container.addEventListener( 'click', close_image_overlay_container, false );
             
-            body_style.overflow = 'hidden';
+            if ( is_tweetdeck() ) {
+                html_style.overflowY = 'hidden';
+            }
+            body_style.overflowY = 'hidden';
             body_style.marginRight = 0;
             image_overlay_header_style.display = 'block';
             image_overlay_container_style.display = 'block';
             
             fire_event( image_overlay_container, 'scroll-to-top' );
+            fire_event( image_overlay_container, 'image-next' );
             
         } // end of show_overlay()
         
@@ -869,7 +959,7 @@ function initialize( user_options ) {
         
         
         function add_open_button( tweet ) {
-            var tweet_container = search_ancestor( tweet, [ 'js-stream-item' ] ),
+            var tweet_container = ( is_tweetdeck() ) ? search_ancestor( tweet, [ 'js-stream-item' ] ) : null,
                 tweet_container = ( tweet_container ) ? tweet_container : tweet,
                 old_button = tweet_container.querySelector( '.' + button_container_classname );
             
@@ -1212,11 +1302,14 @@ function initialize( user_options ) {
                     fire_event( image_overlay_container, 'page-down' );
                 }
                 break;
+            case 68 : // [d]
+                fire_event( image_overlay_container, 'download-image' );
+                break;
             case 74 : // [j]
-                fire_event( image_overlay_container, 'page-down' );
+                fire_event( image_overlay_container, 'image-next' );
                 break;
             case 75 : // [k]
-                fire_event( image_overlay_container, 'page-up' );
+                fire_event( image_overlay_container, 'image-prev' );
                 break;
             case 37 : // [←]
                 break;
