@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.5.5
+// @version         0.1.5.6
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -62,12 +62,17 @@ var OPTIONS = {
 ,   DISPLAY_OVERLAY : true // true: 全ての画像を同一ページで開く際に(別タブで開かず)タイムライン上にオーバーレイする
 ,   OVERRIDE_CLICK_EVENT : true // true: ツイート中の画像クリックで原寸画像を開く
 ,   DOWNLOAD_HELPER_SCRIPT_IS_VALID : true // true: ダウンロードヘルパー機能有効
+
 ,   OPERATION : true // true: 動作中、false: 停止中
+
 ,   WAIT_AFTER_OPENPAGE : 500 // Firefox でページを開いた後、画像を挿入するまでのタイムラグ(ms)
     // TODO: Firefox(Greasemonkey) で window.open() した後 document を書きかえるまでにウェイトをおかないとうまく行かない
-,   KEYCODE_DISPLAY_IMAGES : 118 // 画像を開くときのキー(118=[v])
-,   KEYCODE_CLOSE_OVERLAY : 27 // 画像を閉じるときのキー(※オーバーレイ時のみ)
+,   KEYCODE_DISPLAY_IMAGES : 86 // 画像を開くときのキーコード(keydown用)(86=[v])
+,   KEYCODE_CLOSE_OVERLAY : 27 // 画像を閉じるときのキー(keydown用)(27=[Esc])(※オーバーレイ時のみ)
 ,   HELP_KEYCHAR_DISPLAY_IMAGES : 'v'
+,   SCROLL_STEP : 100 // オーバーレイ表示時の[↑][↓]によるスクロール単位(pixel)
+,   SMOOTH_SCROLL_STEP : 100 // オーバーレイ表示時のスムーズスクロール単位(pixel)
+,   SMOOTH_SCROLL_INTERVAL : 10 // オーバーレイ表示時のスムーズスクロールの間隔(ms)
 };
 
 
@@ -121,6 +126,15 @@ var is_ie = ( function () {
         return flag;
     };
 } )(); // end of is_ie()
+
+
+var is_mac = ( function () {
+    var flag = ( 0 <= w.navigator.platform.toLowerCase().indexOf( 'mac' ) );
+    
+    return function () {
+        return flag;
+    };
+} )(); // end of is_mac()
 
 
 function is_bookmarklet() {
@@ -375,91 +389,279 @@ function initialize( user_options ) {
     } // end of get_element_top()
     
     
+    function fire_event( target_element, event_kind ) {
+        var cutsom_event = d.createEvent( 'HTMLEvents' );
+        
+        cutsom_event.initEvent( event_kind, true, false );
+        target_element.dispatchEvent( cutsom_event );
+    } // end of fire_event()
+    
+    
     var add_open_button = ( function () {
-        var header_template = d.createElement( 'h1' ),
-            button_container_template = d.createElement( 'div' ),
-            button = d.createElement( 'input' ),
-            link_template = d.createElement( 'a' ),
-            img_template = d.createElement( 'img' ),
-            img_link_container_template = d.createElement( 'div' ),
-            download_link_container_template = d.createElement( 'div' ),
-            download_frame_template = d.createElement( 'iframe' ),
-            page_container = d.querySelector( 'div#page-container' ),
-            image_overlay_container = d.createElement( 'div' ),
-            image_container = d.createElement( 'div' ),
-            
-            header_style = header_template.style,
-            button_style = button.style,
-            link_style = link_template.style,
-            img_style = img_template.style,
-            img_link_container_style = img_link_container_template.style,
-            download_link_container_style = download_link_container_template.style,
-            download_frame_style = download_frame_template.style,
-            image_overlay_container_style = image_overlay_container.style,
-            image_container_style = image_container.style,
-            
-            button_container_classname = SCRIPT_NAME + 'Button',
+        var button_container_classname = SCRIPT_NAME + 'Button',
             opened_name_map = {},
-            is_mac = ( 0 <= w.navigator.platform.toLowerCase().indexOf( 'mac' ) ),
-            alt_text = ( is_mac ) ? '[option]' : '[Alt]';
+            
+            header_template = ( function () {
+                var header_template = d.createElement( 'h1' ),
+                    header_style = header_template.style;
+                
+                header_style.fontSize = '16px';
+                header_style.margin = '0 0 8px';
+                header_style.padding = '6px 8px 2px';
+                header_style.height = '16px';
+                
+                return header_template;
+            } )(),
+            
+            button_container_template = ( function () {
+                var button_container_template = d.createElement( 'div' ),
+                    button = d.createElement( 'input' ),
+                    button_container_style = button_container_template.style,
+                    button_style = button.style,
+                    alt_text = ( is_mac() ) ? '[option]' : '[Alt]';
+                
+                button.type = 'button';
+                button_style.padding = '2px 6px';
+                button_style.color = 'gray';
+                button_style.background = 'white';
+                
+                if ( OPTIONS.DISPLAY_ALL_IN_ONE_PAGE ) {
+                    button.title = escape_html( '[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE + ' / ' + alt_text + '+[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE );
+                }
+                else {
+                    button.title = escape_html( '[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE + ' / ' + alt_text + '+[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE );
+                }
+                
+                button.value = escape_html( OPTIONS.BUTTON_TEXT );
+                button_container_template.className = 'ProfileTweet-action ' + button_container_classname;
+                button_container_template.appendChild( button );
+                
+                return button_container_template;
+            } )(),
+            
+            link_template = ( function () {
+                var link_template = d.createElement( 'a' ),
+                    link_style = link_template.style;
+                
+                link_template.target = '_blank';
+                link_style.textDecoration = 'none';
+                link_style.color = '#66757f';
+                
+                return link_template;
+            } )(),
+            
+            img_template = ( function () {
+                var img_template = d.createElement( 'img' ),
+                    img_style = img_template.style;
+                
+                img_style.maxWidth = '100%';
+                img_style.height = 'auto';
+                img_style.background = '#fff';
+                
+                return img_template;
+            } )(),
+            
+            img_link_container_template = ( function () {
+                var img_link_container_template = d.createElement( 'div' ),
+                    img_link_container_style = img_link_container_template.style;
+                
+                img_link_container_style.clear = 'both';
+                img_link_container_style.margin = '0 0 8px 0';
+                img_link_container_style.textAlign = 'center';
+                
+                return img_link_container_template;
+            } )(),
+            
+            download_link_container_template = ( function () {
+                var download_link_container_template = d.createElement( 'div' ),
+                    download_link_container_style = download_link_container_template.style;
+                
+                download_link_container_style.margin = '0 0 1px 0';
+                
+                return download_link_container_template;
+            } )(),
+            
+            download_frame_template = ( function () {
+                var download_frame_template = d.createElement( 'iframe' ),
+                    download_frame_style = download_frame_template.style;
+                
+                download_frame_template.name = SCRIPT_NAME + '_download_frame';
+                download_frame_style.width = '0';
+                download_frame_style.height = '0';
+                download_frame_style.visibility = 'hidden';
+                
+                return download_frame_template;
+            } )(),
+            
+            image_overlay = ( function () {
+                var image_overlay_image_container = ( function () {
+                        var image_overlay_image_container = d.createElement( 'div' ),
+                            image_overlay_image_container_style = image_overlay_image_container.style;
+                        
+                        image_overlay_image_container.className = SCRIPT_NAME + '_image_overlay_image_container';
+                        image_overlay_image_container_style.width = '100%';
+                        image_overlay_image_container_style.height = 'auto';
+                        //image_overlay_image_container_style.marginTop = '26px';
+                        
+                        return image_overlay_image_container;
+                    } )(),
+                    
+                    image_overlay_container = ( function () {
+                        var image_overlay_container = d.createElement( 'div' ),
+                            image_overlay_container_style = image_overlay_container.style,
+                            timerid_list = [];
+                        
+                        image_overlay_container.id = SCRIPT_NAME + '_image_overlay_container';
+                        image_overlay_container_style.display = 'none';
+                        image_overlay_container_style.position = 'fixed';
+                        image_overlay_container_style.top = 0;
+                        image_overlay_container_style.bottom = 0;
+                        image_overlay_container_style.left = 0;
+                        image_overlay_container_style.right = 0;
+                        image_overlay_container_style.overflow = 'auto';
+                        image_overlay_container_style.zIndex = 10000;
+                        image_overlay_container_style.padding = '26px 0 32px 0';
+                        image_overlay_container_style.background = 'rgba( 0, 0, 0, 0.8 )';
+                        
+                        image_overlay_container.appendChild( image_overlay_image_container );
+                        
+                        function clear_timerid_list() {
+                            while ( 0 < timerid_list.length ) {
+                                var timerid = timerid_list.pop();
+                                clearTimeout( timerid );
+                            }
+                        } // end of clear_timerid_list()
+                        
+                        
+                        function image_overlay_container_scroll_step( step ) {
+                            image_overlay_container.scrollTop += step;
+                        } // end of image_overlay_container_scroll_step()
+                        
+                        
+                        function image_overlay_container_smooth_scroll( scroll_height, step, interval ) {
+                            var remain_height = scroll_height,
+                                step = ( step ) ? step : OPTIONS.SMOOTH_SCROLL_STEP,
+                                direction = ( step < 0 ) ? -1 : 1,
+                                step = Math.abs( step ),
+                                interval = ( interval ) ? interval : OPTIONS.SMOOTH_SCROLL_INTERVAL;
+                                
+                            for ( var ci = 0; 0 < remain_height; ci ++, remain_height -= step ) {
+                                ( function ( remain_height, timing ) {
+                                    var timerid = setTimeout( function () {
+                                        var current_step = direction * ( ( step < remain_height ) ? step : remain_height );
+                                        image_overlay_container_scroll_step( current_step );
+                                        
+                                        var index = timerid_list.indexOf( timerid );
+                                        if ( 0 <= index ) {
+                                            timerid_list.splice( index, 1 );
+                                        }
+                                    }, timing );
+                                    
+                                    timerid_list.push( timerid );
+                                } )( remain_height, interval * ci );
+                            }
+                        } // end of image_overlay_container_smooth_scroll()
+                        
+                        
+                        function image_overlay_container_page_step( direction ) {
+                            if ( ! direction ) {
+                                direction = 1;
+                            }
+                            image_overlay_container_smooth_scroll( image_overlay_container.clientHeight - 24, direction * OPTIONS.SMOOTH_SCROLL_STEP );
+                        
+                        } // end of image_overlay_container_scroll_step()
+                        
+                        
+                        image_overlay_container.addEventListener( 'scroll-to-top', function () {
+                            clear_timerid_list();
+                            image_overlay_container.scrollTop = 0;
+                        }, false );
+                        
+                        image_overlay_container.addEventListener( 'scroll-to-bottom', function () {
+                            clear_timerid_list();
+                            image_overlay_container.scrollTop = image_overlay_container.scrollHeight;
+                        }, false );
+                        
+                        image_overlay_container.addEventListener( 'smooth-scroll-to-top', function () {
+                            clear_timerid_list();
+                            image_overlay_container_smooth_scroll( image_overlay_container.scrollTop, - OPTIONS.SMOOTH_SCROLL_STEP );
+                        }, false );
+                        
+                        image_overlay_container.addEventListener( 'smooth-scroll-to-bottom', function () {
+                            clear_timerid_list();
+                            image_overlay_container_smooth_scroll( image_overlay_container.scrollHeight - image_overlay_container.scrollTop, OPTIONS.SMOOTH_SCROLL_STEP );
+                        }, false );
+                        
+                        image_overlay_container.addEventListener( 'scroll-down', function () {
+                            clear_timerid_list();
+                            image_overlay_container_scroll_step( OPTIONS.SCROLL_STEP );
+                        }, false );
+                        
+                        image_overlay_container.addEventListener( 'scroll-up', function () {
+                            clear_timerid_list();
+                            image_overlay_container_scroll_step( - OPTIONS.SCROLL_STEP );
+                        }, false );
+                        
+                        image_overlay_container.addEventListener( 'page-up', function () {
+                            clear_timerid_list();
+                            image_overlay_container_page_step( -1 );
+                        }, false );
+                        
+                        image_overlay_container.addEventListener( 'page-down', function () {
+                            clear_timerid_list();
+                            image_overlay_container_page_step();
+                        }, false );
+                        
+                        d.body.appendChild( image_overlay_container );
+                        
+                        return image_overlay_container;
+                    } )(),
+                    
+                    image_overlay_close_link = ( function () {
+                        var image_overlay_close_link = import_node( link_template ),
+                            image_overlay_close_link_style = image_overlay_close_link.style;
+                        
+                        image_overlay_close_link.className = SCRIPT_NAME + '_close_overlay';
+                        image_overlay_close_link.appendChild( d.createTextNode( OPTIONS.CLOSE_TEXT ) );
+                        
+                        return image_overlay_close_link;
+                    } )(),
+                    
+                    image_overlay_header = ( function () {
+                        var image_overlay_header = import_node( header_template ),
+                            image_overlay_header_style = image_overlay_header.style;
+                        
+                        image_overlay_header.id = SCRIPT_NAME + '_image_overlay_header';
+                        image_overlay_header_style.display = 'none';
+                        image_overlay_header_style.position = 'fixed';
+                        image_overlay_header_style.top = '0';
+                        image_overlay_header_style.right = '0';
+                        image_overlay_header_style.width = '100%';
+                        image_overlay_header_style.textAlign = 'right';
+                        image_overlay_header_style.background = 'white';
+                        image_overlay_header_style.borderBottom = 'solid 1px silver';
+                        image_overlay_header_style.zIndex = 10001;
+                        
+                        image_overlay_header.appendChild( image_overlay_close_link );
+                        
+                        d.body.appendChild( image_overlay_header );
+                        
+                        return image_overlay_header;
+                    } )();
+                
+                return {
+                    container : image_overlay_container
+                ,   image_container : image_overlay_image_container
+                ,   header : image_overlay_header
+                ,   close_link : image_overlay_close_link
+                }
+            } )(),
+            
+            image_overlay_container = image_overlay.container,
+            image_overlay_image_container = image_overlay.image_container,
+            image_overlay_header = image_overlay.header,
+            image_overlay_close_link = image_overlay.close_link;
         
-        header_style.fontSize = '16px';
-        header_style.margin = '0 0 8px';
-        //header_style.padding = '8px 8px 4px';
-        header_style.padding = '6px 8px 2px';
-        header_style.height = '16px';
-        
-        button.type =  'button';
-        button_style.padding = '2px 6px';
-        button_style.color = 'gray';
-        button_style.background = 'white';
-        if ( OPTIONS.DISPLAY_ALL_IN_ONE_PAGE ) {
-            button.title = escape_html( '[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE + ' / ' + alt_text + '+[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE );
-        }
-        else {
-            button.title = escape_html( '[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE + ' / ' + alt_text + '+[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE );
-        }
-        button.value = escape_html( OPTIONS.BUTTON_TEXT );
-        button_container_template.className = 'ProfileTweet-action ' + button_container_classname;
-        button_container_template.appendChild( button );
-        
-        link_template.target = '_blank';
-        link_style.textDecoration = 'none';
-        link_style.color = '#66757f';
-        
-        img_style.maxWidth = '100%';
-        img_style.height = 'auto';
-        img_style.background = '#fff';
-        img_link_container_style.clear = 'both';
-        img_link_container_style.margin = '0 0 8px 0';
-        img_link_container_style.textAlign = 'center';
-        
-        download_link_container_style.margin = '0 0 1px 0';
-        
-        download_frame_template.name = SCRIPT_NAME + '_download_frame';
-        download_frame_style.width = '0';
-        download_frame_style.height = '0';
-        download_frame_style.visibility = 'hidden';
-        
-        image_overlay_container.id = SCRIPT_NAME + '_image_overlay_container';
-        image_overlay_container_style.display = 'none';
-        image_overlay_container_style.position = 'absolute';
-        image_overlay_container_style.top = 0;
-        image_overlay_container_style.left = 0;
-        image_overlay_container_style.width = '100%';
-        image_overlay_container_style.height = 'auto';
-        image_overlay_container_style.zIndex = 10000;
-        image_overlay_container_style.padding = '0';
-        image_overlay_container_style.background = 'rgba( 0, 0, 0, 0.8 )';
-        
-        image_container.className = SCRIPT_NAME + '_image_container';
-        image_container_style.width = '100%';
-        image_container_style.height = 'auto';
-        image_container_style.marginTop = '26px';
-        
-        image_overlay_container.appendChild( image_container );
-        
-        d.body.appendChild( image_overlay_container );
         
         function add_images_to_page( img_urls, parent, target_document ) {
             if ( ! target_document ) {
@@ -503,6 +705,11 @@ function initialize( user_options ) {
                     img_link_container.appendChild( download_link_container );
                 }
                 
+                img.addEventListener( 'load', function ( event ) {
+                    img.setAttribute( 'width', img.naturalWidth );
+                    img.setAttribute( 'height', img.naturalHeight );
+                }, false );
+                
                 img.src = link.href = img_url;
                 link.appendChild( img );
                 link.addEventListener( 'click', function ( event ) {
@@ -517,114 +724,59 @@ function initialize( user_options ) {
         
         
         function show_overlay( img_urls, tweet_url, title ) {
-            if ( image_overlay_container_style.display != 'none' ) {
+            if ( image_overlay_container.style.display != 'none' ) {
                 // TODO: 重複して呼ばれるケース(不正な動作)に対するガード
                 //console.error( 'show_overlay(): duplicate called' );
                 return;
             }
             
             var body = d.body,
-                doc = d.querySelector( 'div#doc' ),
-                gallery = d.querySelector( 'div.Gallery' ),
-                gallery_overlay = d.querySelector( 'div.gallery-overlay' ),
-                permalink_overlay = d.querySelector( 'div#permalink-overlay' ),
-                close_link = import_node( link_template ),
-                header = import_node( header_template ),
                 
+                image_overlay_container_style = image_overlay_container.style,
+                image_overlay_header_style = image_overlay_header.style,
                 body_style = body.style,
-                doc_style = ( doc ) ? doc.style : null,
-                gallery_style = ( gallery ) ? gallery.style : null,
-                gallery_overlay_style = ( gallery_overlay ) ? gallery_overlay.style : null,
-                permalink_overlay_style = ( permalink_overlay ) ? permalink_overlay.style : null,
-                close_link_style = close_link.style,
-                header_style = header.style,
-                
-                saved_scrollTop = get_scroll_top(),
                 
                 saved_body_position = body_style.position,
                 saved_body_overflow = body_style.overflow,
-                saved_body_marginRight = body_style.marginRight,
-                saved_doc_overflow = ( doc_style ) ? doc_style.overflow : null,
-                saved_doc_height = ( doc_style ) ? doc_style.height : null,
-                saved_doc_marginTop = ( doc_style ) ? doc_style.marginTop : null;
-            
-            function update_image_overlay_container_height( event ) {
-                var height = Math.max( image_container.offsetHeight + 64, w.innerHeight + get_scroll_top() );
-                
-                if ( doc_style ) {
-                    doc_style.height = ( height + saved_scrollTop ) + 'px';
-                }
-                image_overlay_container_style.height = height + 'px';
-            } // end of update_image_overlay_container_height()
+                saved_body_marginRight = body_style.marginRight;
             
             
             function close_image_overlay_container( event ) {
                 event.stopPropagation();
                 event.preventDefault();
                 
+                fire_event( image_overlay_container, 'scroll-to-top' );
+                
                 image_overlay_container_style.display = 'none';
-                
-                w.removeEventListener( 'resize', update_image_overlay_container_height, false );
-                w.removeEventListener( 'scroll', update_image_overlay_container_height, false );
-                
-                image_overlay_container.removeEventListener( 'click', close_image_overlay_container, false );
-                close_link.removeEventListener( 'click', close_image_overlay_container, false );
-                
-                clear_node( image_container );
-                
-                if ( doc_style ) {
-                    doc_style.height = saved_doc_height;
-                    doc_style.marginTop = saved_doc_marginTop;
-                    doc_style.overflow = saved_doc_overflow;
-                }
+                image_overlay_header_style.display = 'none';
                 body_style.marginRight = saved_body_marginRight;
                 body_style.overflow = saved_body_overflow;
-                body_style.position = saved_body_position;
                 
-                w.scrollTo( 0, saved_scrollTop );
+                image_overlay_container.removeEventListener( 'click', close_image_overlay_container, false );
+                image_overlay_header.removeEventListener( 'click', close_image_overlay_container, false );
+                image_overlay_close_link.removeEventListener( 'click', close_image_overlay_container, false );
+                
+                clear_node( image_overlay_image_container );
                 
                 return false;
             } // end of close_image_overlay_container()
             
             
-            clear_node( image_container );
+            clear_node( image_overlay_image_container );
             
-            close_link.className = SCRIPT_NAME + '_close_overlay';
-            close_link.href = tweet_url;
-            close_link.appendChild( d.createTextNode( OPTIONS.CLOSE_TEXT ) );
-            //header_style.cssFloat = 'right';
-            header_style.position = 'fixed';
-            header_style.top = '0';
-            header_style.right = '0';
-            header_style.width = '100%';
-            header_style.textAlign = 'right';
-            header_style.background = 'white';
-            header_style.borderBottom = 'solid 1px silver';
-            header.appendChild( close_link );
+            image_overlay_close_link.href = tweet_url;
+            add_images_to_page( img_urls, image_overlay_image_container );
             
-            image_container.appendChild( header );
-            
-            add_images_to_page( img_urls, image_container );
-            
-            body_style.position = 'static';
-            body_style.overflow = 'auto';
-            body_style.marginRight = '0';
-            
-            if ( doc_style ) {
-                doc_style.overflow = 'hidden';
-                doc_style.marginTop = -saved_scrollTop + 'px';
-            }
-            update_image_overlay_container_height();
-            
-            image_overlay_container_style.display = 'block';
-            
-            close_link.addEventListener( 'click', close_image_overlay_container, false );
+            image_overlay_close_link.addEventListener( 'click', close_image_overlay_container, false );
+            image_overlay_header.addEventListener( 'click', close_image_overlay_container, false );
             image_overlay_container.addEventListener( 'click', close_image_overlay_container, false );
             
-            w.addEventListener( 'scroll', update_image_overlay_container_height, false );
-            w.addEventListener( 'resize', update_image_overlay_container_height, false );
+            body_style.overflow = 'hidden';
+            body_style.marginRight = 0;
+            image_overlay_header_style.display = 'block';
+            image_overlay_container_style.display = 'block';
             
-            w.scrollTo( 0, 0 );
+            fire_event( image_overlay_container, 'scroll-to-top' );
             
         } // end of show_overlay()
         
@@ -826,11 +978,7 @@ function initialize( user_options ) {
                     }
                     
                     if ( img.classList.contains( SCRIPT_NAME + '_touched' ) ) {
-                        var cutsom_event = document.createEvent( 'HTMLEvents' );
-                        
-                        cutsom_event.initEvent( 'remove-image-events', true, false );
-                        img.dispatchEvent( cutsom_event );
-                        img.classList.remove( SCRIPT_NAME + '_touched' );
+                        fire_event( img, 'remove-image-events' );
                     }
                     
                     function open_target_image( event ) {
@@ -849,6 +997,7 @@ function initialize( user_options ) {
                     function remove_image_events( event ) {
                         img.removeEventListener( 'remove-image-events', remove_image_events, false );
                         img.removeEventListener( 'click', open_target_image, false );
+                        img.classList.remove( SCRIPT_NAME + '_touched' );
                     } // end of remove_image_events()
                     
                     
@@ -968,15 +1117,28 @@ function initialize( user_options ) {
     } // end of start_inserted_node_observer()
     
     
-    function close_overlay() {
-        var image_overlay_container = d.querySelector( 'div#' + SCRIPT_NAME + '_image_overlay_container' ),
-            close_link = ( image_overlay_container ) ? image_overlay_container.querySelector( 'a.' + SCRIPT_NAME + '_close_overlay' ) : null;
+    function get_visible_overlay_container() {
+        var image_overlay_container = d.querySelector( '#' + SCRIPT_NAME + '_image_overlay_container' );
         
-        if ( ( ! image_overlay_container )  || ( image_overlay_container.style.display == 'none' ) || ( ! close_link ) ) {
+        return ( image_overlay_container && image_overlay_container.style.display != 'none' ) ? image_overlay_container : null;
+        
+    } // end of get_visible_overlay_container()
+    
+    
+    function close_overlay() {
+        var image_overlay_container = get_visible_overlay_container();
+        
+        if ( ! image_overlay_container ) {
             return false;
         }
         
-        close_link.click();
+        var image_overlay_close_link = d.querySelector( '#' + SCRIPT_NAME + '_image_overlay_header a.' + SCRIPT_NAME + '_close_overlay' );
+            
+        if ( ! image_overlay_close_link ) {
+            return false;
+        }
+        
+        image_overlay_close_link.click();
         
         return true;
     } // end of close_overlay()
@@ -1019,7 +1181,7 @@ function initialize( user_options ) {
     } // end of view_images_on_keypress()
     
     
-    function close_overview_on_keypress( event ) {
+    function close_overlay_on_keypress( event ) {
         if ( ! close_overlay() ) {
             return;
         }
@@ -1028,7 +1190,70 @@ function initialize( user_options ) {
         event.preventDefault();
         
         return false;
-    } // end of close_overview_on_keypress()
+    } // end of close_overlay_on_keypress()
+    
+    
+    function check_overlay_key_event( key_code, event ) {
+        var image_overlay_container = get_visible_overlay_container();
+        
+        if ( ! image_overlay_container ) {
+            return false;
+        }
+        
+        var is_valid_key = true;
+        
+        switch ( key_code ) {
+            case 13 : // [Enter]
+            case 32 : // [Space]
+                if ( event.shiftKey ) {
+                    fire_event( image_overlay_container, 'page-up' );
+                }
+                else {
+                    fire_event( image_overlay_container, 'page-down' );
+                }
+                break;
+            case 74 : // [j]
+                fire_event( image_overlay_container, 'page-down' );
+                break;
+            case 75 : // [k]
+                fire_event( image_overlay_container, 'page-up' );
+                break;
+            case 37 : // [←]
+                break;
+            case 38 : // [↑]
+                fire_event( image_overlay_container, 'scroll-up' );
+                break;
+            case 39 : // [→]
+                break;
+            case 40 : // [↓]
+                fire_event( image_overlay_container, 'scroll-down' );
+                break;
+            case 36 : // [Home]
+                fire_event( image_overlay_container, 'smooth-scroll-to-top' );
+                break;
+            case 35 : // [End]
+                fire_event( image_overlay_container, 'smooth-scroll-to-bottom' );
+                break;
+            default :
+                if ( 
+                    ( 65 <= key_code && key_code <= 90 ) || // [A-Za-z]
+                    ( 48 <= key_code && key_code <= 57 ) || // [0-9]
+                    ( 188 <= key_code && key_code <= 191 ) // [,\-./<>?]
+                ) {
+                    // オーバーレイ表示中は、標準のショートカットキーを無効化
+                    break;
+                }
+                is_valid_key = false;
+                break;
+        }
+        
+        if ( is_valid_key ) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+        return is_valid_key;
+        
+    } // end of check_overlay_key_event()
     
     
     function start_key_observer() {
@@ -1043,7 +1268,6 @@ function initialize( user_options ) {
             return true;
         } // end of is_valid()
         
-        
         d.body.addEventListener( 'keypress', function ( event ) {
             var active_element = d.activeElement;
             
@@ -1054,14 +1278,27 @@ function initialize( user_options ) {
             var key_code = event.which;
             
             switch ( key_code ) {
-                case OPTIONS.KEYCODE_DISPLAY_IMAGES :
-                    return view_images_on_keypress( event );
-                    break;
                 default :
+                    var image_overlay_container = get_visible_overlay_container();
+                    
+                    if ( ! image_overlay_container ) {
+                        break;
+                    }
+                    
+                    if (
+                        ( 65 <= key_code && key_code <= 90 ) || // [A-Z]
+                        ( 97 <= key_code && key_code <= 122 ) || // [a-z]
+                        ( 48 <= key_code && key_code <= 57 ) || // [0-9]
+                        ( 44 <= key_code && key_code <= 47 ) || // [,\-./]
+                        ( 60 <= key_code && key_code <= 63 ) // [<=>?]
+                    ) {
+                        // オーバーレイ表示中は、標準のショートカットキーを無効化
+                        event.stopPropagation();
+                        event.preventDefault();
+                    }
                     break;
             }
         }, false );
-        
         
         d.body.addEventListener( 'keydown', function ( event ) {
             var active_element = d.activeElement;
@@ -1073,10 +1310,17 @@ function initialize( user_options ) {
             var key_code = event.keyCode;
             
             switch ( key_code ) {
+                case OPTIONS.KEYCODE_DISPLAY_IMAGES :
+                    return view_images_on_keypress( event );
+                
                 case OPTIONS.KEYCODE_CLOSE_OVERLAY :
-                    return close_overview_on_keypress( event );
+                    return close_overlay_on_keypress( event );
                     break;
+                
                 default :
+                    if ( check_overlay_key_event( key_code, event ) ) {
+                        return false;
+                    }
                     break;
             }
         }, false );
