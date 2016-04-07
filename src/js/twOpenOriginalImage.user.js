@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.5.7
+// @version         0.1.5.8
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -90,22 +90,26 @@ switch ( LANGUAGE ) {
     case 'ja' :
         OPTIONS.TITLE_PREFIX = '画像: ';
         OPTIONS.TWEET_LINK_TEXT = '元ツイート⤴';
-        OPTIONS.CLOSE_TEXT = '☒ 閉じる';
+        OPTIONS.CLOSE_TEXT = '☒ 閉じる[Esc]';
         OPTIONS.BUTTON_TEXT = '原寸画像';
         OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = '全ての画像を同一ページで開く';
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = '画像を個別に開く';
         OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = '↓ ダウンロード';
         OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = '原寸画像を開く 【原寸びゅー】';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE = '[j]次の画像 [k]前の画像 ';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD = '[d]ダウンロード ';
         break;
     default:
         OPTIONS.TITLE_PREFIX = 'IMG: ';
         OPTIONS.TWEET_LINK_TEXT = 'Tweet';
-        OPTIONS.CLOSE_TEXT = 'Close';
+        OPTIONS.CLOSE_TEXT = 'Close [Esc]';
         OPTIONS.BUTTON_TEXT = 'Original';
         OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = 'Display all in one page';
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = 'Display one image per page';
         OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = 'Download';
         OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = 'Display original images (' + SCRIPT_NAME + ')';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE = '[j]next [k]previous ';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD = '[d]download ';
         break;
 }
 
@@ -698,9 +702,27 @@ function initialize( user_options ) {
                             image_overlay_close_link_style = image_overlay_close_link.style;
                         
                         image_overlay_close_link.className = SCRIPT_NAME + '_close_overlay';
+                        image_overlay_close_link_style.display = 'block';
+                        image_overlay_close_link_style.cssFloat = 'right';
+                        image_overlay_close_link_style.margin = '0 8px';
+                        
                         image_overlay_close_link.appendChild( d.createTextNode( OPTIONS.CLOSE_TEXT ) );
                         
                         return image_overlay_close_link;
+                    } )(),
+                    
+                    image_overlay_shortcut_help = ( function () {
+                        var image_overlay_shortcut_help = d.createElement( 'div' ),
+                            image_overlay_shortcut_help_style = image_overlay_shortcut_help.style;
+                        
+                        image_overlay_shortcut_help.className = SCRIPT_NAME + '_shortcut_help_overlay';
+                        
+                        image_overlay_shortcut_help_style.cssFloat = 'left';
+                        image_overlay_shortcut_help_style.margin = '2px 8px';
+                        image_overlay_shortcut_help_style.fontWeight = 'normal';
+                        image_overlay_shortcut_help_style.fontSize = '14px';
+                        
+                        return image_overlay_shortcut_help;
                     } )(),
                     
                     image_overlay_header = ( function () {
@@ -710,14 +732,15 @@ function initialize( user_options ) {
                         image_overlay_header.id = SCRIPT_NAME + '_image_overlay_header';
                         image_overlay_header_style.display = 'none';
                         image_overlay_header_style.position = 'fixed';
-                        image_overlay_header_style.top = '0';
-                        image_overlay_header_style.right = '0';
+                        image_overlay_header_style.top = 0;
+                        image_overlay_header_style.left = 0;
                         image_overlay_header_style.width = '100%';
-                        image_overlay_header_style.textAlign = 'right';
+                        image_overlay_header_style.padding = '6px 0 2px';
                         image_overlay_header_style.background = 'white';
                         image_overlay_header_style.borderBottom = 'solid 1px silver';
                         image_overlay_header_style.zIndex = 10001;
                         
+                        image_overlay_header.appendChild( image_overlay_shortcut_help );
                         image_overlay_header.appendChild( image_overlay_close_link );
                         
                         d.body.appendChild( image_overlay_header );
@@ -730,13 +753,15 @@ function initialize( user_options ) {
                 ,   image_container : image_overlay_image_container
                 ,   header : image_overlay_header
                 ,   close_link : image_overlay_close_link
+                ,   shortcut_help : image_overlay_shortcut_help
                 }
             } )(),
             
             image_overlay_container = image_overlay.container,
             image_overlay_image_container = image_overlay.image_container,
             image_overlay_header = image_overlay.header,
-            image_overlay_close_link = image_overlay.close_link;
+            image_overlay_close_link = image_overlay.close_link,
+            image_overlay_shortcut_help = image_overlay.shortcut_help;
         
         
         function add_images_to_page( img_urls, parent, target_document ) {
@@ -852,6 +877,15 @@ function initialize( user_options ) {
             
             image_overlay_close_link.href = tweet_url;
             add_images_to_page( img_urls, image_overlay_image_container );
+            
+            clear_node( image_overlay_shortcut_help );
+            
+            if ( 1 < image_overlay_image_container.querySelectorAll( '.image-link-container' ).length ) {
+                image_overlay_shortcut_help.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE ) );
+            }
+            if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID && ( ! is_ie() ) ) {
+                image_overlay_shortcut_help.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD ) );
+            }
             
             image_overlay_close_link.addEventListener( 'click', close_image_overlay_container, false );
             image_overlay_header.addEventListener( 'click', close_image_overlay_container, false );
