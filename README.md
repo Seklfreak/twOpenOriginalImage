@@ -5,7 +5,7 @@ Twitter 原寸びゅー (twOpenOriginalImage)
 - Copyright (c) 2016 風柳(furyu)  
 - 対象ブラウザ： Google Chrome、Firefox、Opera
 
-Web 版公式 Twitter 上の画像を、原寸（URLが '～:orig' のもの）で開くボタンを付けるスクリプト。  
+[Web 版公式 Twitter](https://twitter.com/) ／ [TweetDeck](https://tweetdeck.twitter.com/) のツイートの画像を、原寸（URLが '～:orig' のもの）で開くボタンを付けるスクリプト。  
 画像のダウンロード支援スクリプト（ダウンロードされる拡張子を '～.jpg-orig' 等から、'～-orig.jpg' のように変換）もあり。  
 
 
@@ -31,8 +31,11 @@ Firefox＋[Greasemonkey](https://addons.mozilla.org/ja/firefox/addon/greasemonke
 
 ■ 使い方
 ---
-Web 版公式 Twitter 上で、画像つきツイートには [原寸表示]（[Original]）というボタンが挿入される。  
+[Web 版公式 Twitter](https://twitter.com/) ／ [TweetDeck](https://tweetdeck.twitter.com/) 上で、画像つきツイートには [原寸画像]（[Original]）というボタンが挿入される。  
+[![原寸びゅーのデモ](http://cdn-ak.f.st-hatena.com/images/fotolife/f/furyu-tei/20160319/20160319125425.png)](https://www.youtube.com/watch?v=6Z_QDlg8zDk)
 これをクリックすると、オリジナルサイズの画像（URLが'～:orig'のもの）が表示される。  
+[![原寸びゅーのデモ](http://cdn-ak.f.st-hatena.com/images/fotolife/f/furyu-tei/20160319/20160319125405.png)](https://www.youtube.com/watch?v=6Z_QDlg8zDk)
+
 デフォルト設定では、ツイートの画像（サムネイル）をクリック、もしくは、個別表示時やタイムライン上にカーソルがある場合（[j][k]キーにて移動時）に[v]キー押下でも原寸画像が表示される。  
 
 画像ダウンロードヘルパーが有効な場合は、[ダウンロード]（[Download]）ボタンが表示され、これをクリックすると当該画像がダウンロードされる（このとき、…….jpg:orig などは、……-orig.jpg に自動的に変換される）。  
@@ -50,8 +53,8 @@ Web 版公式 Twitter 上で、画像つきツイートには [原寸表示]（[
 ■ オリジナルとの主な違いなど
 ---
 - アイデアを拝借、元のソースコードを参照しつつ、基本的にはいちから作成（なのでオリジナルでは発生しない不具合等もあるはず）。  
-- デフォルト設定では、[原寸表示]ボタンクリック時に、画像を個別のタブではなく、一つのタブ（元のタイムラインと同一のタブ）上に、まとめて開く（DISPLAY_ALL_IN_ONE_PAGE = true 時・[Alt]＋クリックで個別のタブで開く）。  
-- ユーザースクリプト版には、オプション設定機能はなし。必要な場合、インストール後に手動でソース上のパラメータ（SHOW_IN_DETAIL_PAGE, SHOW_IN_TIMELINE, DISPLAY_ALL_IN_ONE_PAGE, DISPLAY_OVERLAY, OVERRIDE_CLICK_EVENT, DOWNLOAD_HELPER_SCRIPT_IS_VALID）を変更すること（true ⇔ false）。  
+- デフォルト設定では、[原寸画像]ボタンクリック時に、画像を個別のタブではなく、一つのタブ（元のタイムラインと同一のタブ）上に、まとめて開く（DISPLAY_ALL_IN_ONE_PAGE = true 時・[Alt]＋クリックで個別のタブで開く）。  
+- ユーザースクリプト版には、オプション設定機能はなし。必要な場合、インストール後に手動でソース上のパラメータ（SHOW_IN_DETAIL_PAGE, SHOW_IN_TIMELINE, ENABLED_ON_TWEETDECK, DISPLAY_ALL_IN_ONE_PAGE, DISPLAY_OVERLAY, OVERRIDE_CLICK_EVENT, DOWNLOAD_HELPER_SCRIPT_IS_VALID）を変更すること（true ⇔ false）。  
 
 
 ■ 関連記事
