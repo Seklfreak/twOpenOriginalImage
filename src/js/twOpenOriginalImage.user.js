@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.5.9
+// @version         0.1.5.10
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -556,6 +556,9 @@ function initialize( user_options ) {
                                 options = {};
                             }
                             
+                            var scroll_to = options.scroll_to,
+                                smooth_scroll = options.smooth_scroll;
+                            
                             if ( ! target_container.classList.contains( 'current' ) ) {
                                 var current_container = image_overlay_container.querySelector( '.image-link-container.current' );
                                 
@@ -572,9 +575,7 @@ function initialize( user_options ) {
                                 
                                 target_container.classList.add( 'current' );
                                 
-                                var scroll_to = options.scroll_to,
-                                    smooth_scroll = options.smooth_scroll,
-                                    download_link = target_container.querySelector( '.download-link' );
+                                var download_link = target_container.querySelector( '.download-link' );
                                 
                                 if ( download_link ) {
                                     download_link.style.border = 'solid 2px silver';
