@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.5.10
+// @version         0.1.5.11
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -479,6 +479,7 @@ function initialize( user_options ) {
                 img_link_container_template.className = 'image-link-container';
                 img_link_container_style.clear = 'both';
                 img_link_container_style.margin = '0 0 8px 0';
+                img_link_container_style.padding = '0 0 4px 0';
                 img_link_container_style.textAlign = 'center';
                 
                 return img_link_container_template;
@@ -547,6 +548,31 @@ function initialize( user_options ) {
                         } // end of clear_timerid_list()
                         
                         
+                        function remove_timerid( timerid ) {
+                            var index = timerid_list.indexOf( timerid );
+                            if ( 0 <= index ) {
+                                timerid_list.splice( index, 1 );
+                            }
+                        } // end of remove_timerid()
+                        
+                        
+                        function lock_mouseover( wait_offset ) {
+                            if ( ! wait_offset ) {
+                                wait_offset = 0;
+                            }
+                            var timerid = setTimeout( function() {
+                                remove_timerid( timerid );
+                            }, wait_offset + 500 );
+                            
+                            timerid_list.push( timerid );
+                        } // end of lock_mouseover()
+                        
+                        
+                        function mouseover_is_locked() {
+                            return ( 0 < timerid_list.length );
+                        } // end of mouseover_is_locked()
+                        
+                        
                         function set_image_container_to_current( target_container, options ) {
                             if ( ! target_container ) {
                                 return;
@@ -574,6 +600,7 @@ function initialize( user_options ) {
                                 }
                                 
                                 target_container.classList.add( 'current' );
+                                target_container.style.background = 'rgba( 128, 128, 128, 0.1 )';
                                 
                                 var download_link = target_container.querySelector( '.download-link' );
                                 
@@ -595,21 +622,48 @@ function initialize( user_options ) {
                                     scroll_height = Math.abs( target_container_top ),
                                     scroll_direction = ( target_container_top < 0 ) ? -1 : 1;
                                 
-                                image_overlay_container_smooth_scroll( scroll_height, scroll_direction * OPTIONS.SMOOTH_SCROLL_STEP );
+                                image_overlay_container_smooth_scroll( {
+                                    scroll_height : scroll_height
+                                ,   step : scroll_direction * OPTIONS.SMOOTH_SCROLL_STEP
+                                ,   lock_after_scroll : true
+                                } );
                             }
                             else {
-                                image_overlay_container.scrollTop = target_container.getBoundingClientRect().top - top_offset;
+                                image_overlay_container_scroll_to( {
+                                    offset : target_container.getBoundingClientRect().top - top_offset
+                                ,   lock_after_scroll : true
+                                } );
                             }
                         } // end of set_image_container_to_current()
                         
                         
+                        function image_overlay_container_scroll_to( options ) {
+                            var options = ( options ) ? options : {},
+                                offset = options.offset,
+                                lock_after_scroll = options.lock_after_scroll;
+                            
+                            if ( lock_after_scroll ) {
+                                // スクロール完了後にウェイトを設ける(mousemove等のイベントをすぐには発火させないため)
+                                lock_mouseover();
+                            }
+                            image_overlay_container.scrollTop = offset;
+                        } // end of image_overlay_container_scroll_to()
+                        
+                        
                         function image_overlay_container_scroll_step( step ) {
-                            image_overlay_container.scrollTop += step;
+                            image_overlay_container_scroll_to( {
+                                offset : image_overlay_container.scrollTop + step
+                            } );
                         } // end of image_overlay_container_scroll_step()
                         
                         
-                        function image_overlay_container_smooth_scroll( scroll_height, step, interval ) {
-                            var remain_height = scroll_height,
+                        function image_overlay_container_smooth_scroll( options ) {
+                            var options = ( options ) ? options : {},
+                                scroll_height = options.scroll_height,
+                                step = options.step,
+                                interval = options.interval,
+                                lock_after_scroll = options.lock_after_scroll,
+                                remain_height = scroll_height,
                                 step = ( step ) ? step : OPTIONS.SMOOTH_SCROLL_STEP,
                                 direction = ( step < 0 ) ? -1 : 1,
                                 step = Math.abs( step ),
@@ -621,14 +675,16 @@ function initialize( user_options ) {
                                         var current_step = direction * ( ( step < remain_height ) ? step : remain_height );
                                         image_overlay_container_scroll_step( current_step );
                                         
-                                        var index = timerid_list.indexOf( timerid );
-                                        if ( 0 <= index ) {
-                                            timerid_list.splice( index, 1 );
-                                        }
+                                        remove_timerid( timerid );
                                     }, timing );
                                     
                                     timerid_list.push( timerid );
                                 } )( remain_height, interval * ci );
+                            }
+                            
+                            if ( lock_after_scroll ) {
+                                // スクロール完了後にウェイトを設ける(mousemove等のイベントをすぐには発火させないため)
+                                lock_mouseover( interval * ci );
                             }
                         } // end of image_overlay_container_smooth_scroll()
                         
@@ -636,9 +692,12 @@ function initialize( user_options ) {
                         function image_overlay_container_page_step( direction ) {
                             var direction = ( direction ) ? direction : 1;
                             
-                            image_overlay_container_smooth_scroll( image_overlay_container.clientHeight, direction * OPTIONS.SMOOTH_SCROLL_STEP - top_offset );
+                            image_overlay_container_smooth_scroll( {
+                                scroll_height : image_overlay_container.clientHeight
+                            ,   step : direction * OPTIONS.SMOOTH_SCROLL_STEP - top_offset 
+                            } );
                         
-                        } // end of image_overlay_container_scroll_step()
+                        } // end of image_overlay_container_page_step()
                         
                         
                         function image_overlay_container_image_init() {
@@ -662,7 +721,7 @@ function initialize( user_options ) {
                                 
                                 
                                 function set_focus_mouseover( event ) {
-                                    if ( ! ( event.shiftKey || event.ctrlKey || event.altKey ) ) {
+                                    if ( mouseover_is_locked() ) {
                                         return;
                                     }
                                     set_image_container_to_current( image_link_container );
@@ -726,22 +785,32 @@ function initialize( user_options ) {
                         
                         image_overlay_container.addEventListener( 'scroll-to-top', function () {
                             clear_timerid_list();
-                            image_overlay_container.scrollTop = 0;
+                            image_overlay_container_scroll_to( {
+                                offset : 0
+                            } );
                         }, false );
                         
                         image_overlay_container.addEventListener( 'scroll-to-bottom', function () {
                             clear_timerid_list();
-                            image_overlay_container.scrollTop = image_overlay_container.scrollHeight;
+                            image_overlay_container_scroll_to( {
+                                offset : image_overlay_container.scrollHeight
+                            } );
                         }, false );
                         
                         image_overlay_container.addEventListener( 'smooth-scroll-to-top', function () {
                             clear_timerid_list();
-                            image_overlay_container_smooth_scroll( image_overlay_container.scrollTop, - OPTIONS.SMOOTH_SCROLL_STEP );
+                            image_overlay_container_smooth_scroll( {
+                                scroll_height : image_overlay_container.scrollTop
+                            ,   step : - OPTIONS.SMOOTH_SCROLL_STEP
+                            } );
                         }, false );
                         
                         image_overlay_container.addEventListener( 'smooth-scroll-to-bottom', function () {
                             clear_timerid_list();
-                            image_overlay_container_smooth_scroll( image_overlay_container.scrollHeight - image_overlay_container.scrollTop, OPTIONS.SMOOTH_SCROLL_STEP );
+                            image_overlay_container_smooth_scroll( {
+                                scroll_height : image_overlay_container.scrollHeight - image_overlay_container.scrollTop
+                            ,   step : OPTIONS.SMOOTH_SCROLL_STEP
+                            } );
                         }, false );
                         
                         image_overlay_container.addEventListener( 'scroll-down', function () {
@@ -931,7 +1000,7 @@ function initialize( user_options ) {
                 
                 remaining_images_counter ++;
                 
-                img.addEventListener( 'load', function ( event ) {
+                function check_loaded_image( event ) {
                     img.setAttribute( 'width', img.naturalWidth );
                     img.setAttribute( 'height', img.naturalHeight );
                     
@@ -939,7 +1008,10 @@ function initialize( user_options ) {
                     if ( remaining_images_counter <= 0 && typeof callback == 'function' ) {
                         callback();
                     }
-                }, false );
+                } // end of check_loaded_image()
+                
+                img.addEventListener( 'load', check_loaded_image );
+                img.addEventListener( 'error', check_loaded_image );
                 
                 img.src = link.href = img_url;
                 
