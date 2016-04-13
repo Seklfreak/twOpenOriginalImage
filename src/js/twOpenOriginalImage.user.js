@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.5.11
+// @version         0.1.5.12
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -1210,6 +1210,7 @@ function initialize( user_options ) {
                 old_button = tweet_container.querySelector( '.' + button_container_classname );
             
             if ( old_button ) {
+                old_button.classList.add( 'removed' );
                 old_button.parentNode.removeChild( old_button );
                 old_button = null;
             }
@@ -1293,17 +1294,24 @@ function initialize( user_options ) {
                 return false;
             }, false );
             
-            if ( is_tweetdeck() ) {
-                if ( action_list.tagName == 'FOOTER' && search_ancestor( img_objects[ 0 ], [ 'js-tweet', 'tweet' ] ) ) {
-                    action_list.insertBefore( button_container, action_list.firstChild );
+            
+            function insert_button( event ) {
+                if ( is_tweetdeck() ) {
+                    if ( action_list.tagName == 'FOOTER' && search_ancestor( img_objects[ 0 ], [ 'js-tweet', 'tweet' ] ) ) {
+                        action_list.insertBefore( button_container, action_list.firstChild );
+                    }
+                    else {
+                        action_list.appendChild( button_container );
+                    }
                 }
                 else {
                     action_list.appendChild( button_container );
                 }
-            }
-            else {
-                action_list.appendChild( button_container );
-            }
+            } // end of insert_button()
+            
+            button_container.addEventListener( 'reinsert', insert_button, false );
+            
+            insert_button();
             
             if ( OPTIONS.OVERRIDE_CLICK_EVENT ) {
                 if ( gallery_media && ( ! is_tweetdeck() ) ) {
@@ -1436,7 +1444,7 @@ function initialize( user_options ) {
     } // end of check_help_dialog()
     
     
-    function start_inserted_node_observer() {
+    function start_mutation_observer() {
         new MutationObserver( function ( records ) {
             if ( ! is_valid_url() ) { // ※ History API によりページ遷移無しで移動する場合もあるので毎回チェック
                 return;
@@ -1451,10 +1459,21 @@ function initialize( user_options ) {
                         return;
                     }
                 } );
+                
+                if ( ! is_tweetdeck() ) {
+                    return;
+                }
+                to_array( record.removedNodes ).forEach( function ( removedNode ) {
+                    if ( ( removedNode.nodeType != 1 ) || ( ! removedNode.classList.contains( SCRIPT_NAME + 'Button' ) ) || ( removedNode.classList.contains( 'removed' ) ) ) {
+                        return;
+                    }
+                    // TweetDeck でユーザーをポップアップ→USERS・MENTIONS等のタイムラインを表示したとき、一度挿入したボタンが削除されることがある→再挿入
+                    fire_event( removedNode, 'reinsert' );
+                } );
             } );
         } ).observe( d.body, { childList : true, subtree : true } );
         
-    } // end of start_inserted_node_observer()
+    } // end of start_mutation_observer()
     
     
     function get_visible_overlay_container() {
@@ -1701,7 +1720,7 @@ function initialize( user_options ) {
     
     function main() {
         // 新規に挿入されるツイートの監視開始
-        start_inserted_node_observer();
+        start_mutation_observer();
         
         // 最初に表示されているすべてのツイートをチェック
         if ( is_valid_url() ) {
