@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.5.15
+// @version         0.1.5.16
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -978,6 +978,38 @@ function initialize( user_options ) {
                         return image_overlay_container;
                     } )(),
                     
+                    image_overlay_loading = ( function () {
+                        var image_overlay_loading = d.createElement( 'div' ),
+                            image_overlay_loading_style = image_overlay_loading.style,
+                            loading = d.createElement( 'img' ),
+                            loading_style = loading.style;
+                        
+                        image_overlay_loading.id = SCRIPT_NAME + '_image_overlay_loading';
+                        image_overlay_loading_style.display = 'none';
+                        image_overlay_loading_style.pointerEvents = 'none';
+                        image_overlay_loading_style.position = 'fixed';
+                        image_overlay_loading_style.top = 0;
+                        image_overlay_loading_style.right = 0;
+                        image_overlay_loading_style.bottom = 0;
+                        image_overlay_loading_style.left = 0;
+                        image_overlay_loading_style.zIndex = 10010;
+                        image_overlay_loading_style.background = 'white';
+                        
+                        loading.src = 'https://abs.twimg.com/a/1460504487/img/t1/spinner-rosetta-gray-32x32.gif';
+                        loading_style.position = 'absolute';
+                        loading_style.top = 0;
+                        loading_style.right = 0;
+                        loading_style.bottom = 0;
+                        loading_style.left = 0;
+                        loading_style.margin = 'auto';
+                        
+                        image_overlay_loading.appendChild( loading );
+                        
+                        d.body.appendChild( image_overlay_loading );
+                        
+                        return image_overlay_loading;
+                    } )(),
+                    
                     image_overlay_close_link = ( function () {
                         var image_overlay_close_link = import_node( link_template ),
                             image_overlay_close_link_style = image_overlay_close_link.style;
@@ -1033,7 +1065,7 @@ function initialize( user_options ) {
                         image_overlay_header_style.padding = '6px 0 2px';
                         image_overlay_header_style.background = 'white';
                         image_overlay_header_style.borderBottom = 'solid 1px silver';
-                        image_overlay_header_style.zIndex = 10001;
+                        image_overlay_header_style.zIndex = 10020;
                         
                         image_overlay_header.appendChild( image_overlay_shortcut_help );
                         image_overlay_header.appendChild( image_overlay_status_container );
@@ -1047,6 +1079,7 @@ function initialize( user_options ) {
                 return {
                     container : image_overlay_container
                 ,   image_container : image_overlay_image_container
+                ,   loading : image_overlay_loading
                 ,   header : image_overlay_header
                 ,   close_link : image_overlay_close_link
                 ,   status_container : image_overlay_status_container
@@ -1056,6 +1089,7 @@ function initialize( user_options ) {
             
             image_overlay_container = image_overlay.container,
             image_overlay_image_container = image_overlay.image_container,
+            image_overlay_loading = image_overlay.loading,
             image_overlay_header = image_overlay.header,
             image_overlay_close_link = image_overlay.close_link,
             image_overlay_status_container = image_overlay.status_container,
@@ -1162,6 +1196,7 @@ function initialize( user_options ) {
                 body = d.body,
                 
                 image_overlay_container_style = image_overlay_container.style,
+                image_overlay_loading_style = image_overlay_loading.style,
                 image_overlay_header_style = image_overlay_header.style,
                 image_overlay_image_container_style = image_overlay_image_container.style,
                 html_style = html_element.style,
@@ -1180,8 +1215,9 @@ function initialize( user_options ) {
                 fire_event( image_overlay_container, 'scroll-to-top' );
                 
                 image_overlay_image_container_style.visibility = 'hidden';
-                image_overlay_container_style.display = 'none';
                 image_overlay_header_style.display = 'none';
+                image_overlay_loading_style.display = 'none';
+                image_overlay_container_style.display = 'none';
                 body_style.marginRight = saved_body_marginRight;
                 body_style.overflowY = saved_body_overflowY;
                 if ( is_tweetdeck() ) {
@@ -1208,6 +1244,7 @@ function initialize( user_options ) {
                     if ( image_overlay_container.style.display == 'none' ) {
                         return;
                     }
+                    image_overlay_loading_style.display = 'none';
                     fire_event( image_overlay_container, 'image-init' );
                 }
             } );
@@ -1281,6 +1318,7 @@ function initialize( user_options ) {
             body_style.overflowY = 'hidden';
             body_style.marginRight = 0;
             image_overlay_header_style.display = 'block';
+            image_overlay_loading_style.display = 'block';
             image_overlay_container_style.display = 'block';
             
         } // end of show_overlay()
@@ -1728,6 +1766,10 @@ function initialize( user_options ) {
         var image_overlay_container = get_visible_overlay_container();
         
         if ( ! image_overlay_container ) {
+            return false;
+        }
+        
+        if ( event.ctrlKey || event.altKey ) {
             return false;
         }
         
