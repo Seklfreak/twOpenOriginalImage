@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.5.13
+// @version         0.1.5.14
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -1233,6 +1233,18 @@ function initialize( user_options ) {
                     help = import_node( help_item_template );
                 
                 help.classList.add( 'help-change-bgcolor' );
+                help.style.pointerEvents = 'auto';
+                help.style.cursor = 'pointer';
+                
+                help.addEventListener( 'click', function ( event ) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    
+                    fire_event( image_overlay_container, 'toggle-image-background-color' );
+                    
+                    return false;
+                }, false );
+                
                 image_overlay_shortcut_help.appendChild( help );
                 
                 function change_background_color( background_color ) {
@@ -1384,13 +1396,12 @@ function initialize( user_options ) {
                 img_objects = ( gallery_media ) ? gallery_media.querySelectorAll( 'img.media-image, img.media-img' ) : null,
                 img_objects = ( img_objects && ( 0 < img_objects.length ) ) ? img_objects : tweet_container.querySelectorAll( '.AdaptiveMedia-photoContainer img, a.js-media-image-link img.media-img, div.js-media > div:not(.is-video) a.js-media-image-link[rel="mediaPreview"]' ),
                 action_list = ( gallery_media ) ? gallery_media.querySelector( '.js-media-preview-container' ) : null,
-                action_list = ( action_list ) ? action_list : tweet_container.querySelector( '.ProfileTweet-actionList, footer' );
+                action_list = ( action_list ) ? action_list : tweet_container.querySelector( '.ProfileTweet-actionList, footer' ),
+                img_urls = [];
             
             if ( ( img_objects.length <= 0 ) || ( ! action_list ) ) {
                 return null;
             }
-            
-            var img_urls = [];
             
             to_array( img_objects ).forEach( function ( img ) {
                 if ( img.src ) {
@@ -1451,6 +1462,10 @@ function initialize( user_options ) {
             
             
             function insert_button( event ) {
+                if ( action_list.querySelector( '.' + button_container_classname ) ) {
+                    // TODO: タイミングによっては、ボタンが二重に表示されてしまう不具合対策
+                    return;
+                }
                 if ( is_tweetdeck() ) {
                     if ( action_list.tagName == 'FOOTER' && search_ancestor( img_objects[ 0 ], [ 'js-tweet', 'tweet' ] ) ) {
                         action_list.insertBefore( button_container, action_list.firstChild );
@@ -1606,6 +1621,17 @@ function initialize( user_options ) {
             }
             
             records.forEach( function ( record ) {
+                if ( is_tweetdeck() ) {
+                    to_array( record.removedNodes ).forEach( function ( removedNode ) {
+                        if ( ( removedNode.nodeType != 1 ) || ( ! removedNode.classList.contains( SCRIPT_NAME + 'Button' ) ) || ( removedNode.classList.contains( 'removed' ) ) ) {
+                            return;
+                        }
+                        // TweetDeck でユーザーをポップアップ→USERS・MENTIONS等のタイムラインを表示したとき、一度挿入したボタンが削除されることがある→再挿入
+                        fire_event( removedNode, 'reinsert' );
+                    } );
+                    // ※ addedNodes の前に removedNodes を先に処理しないと、ボタンの存在チェック等で誤動作することがある
+                }
+                
                 to_array( record.addedNodes ).forEach( function ( addedNode ) {
                     if ( check_tweets( addedNode ) ) {
                         return;
@@ -1613,17 +1639,6 @@ function initialize( user_options ) {
                     if ( check_help_dialog( addedNode ) ) {
                         return;
                     }
-                } );
-                
-                if ( ! is_tweetdeck() ) {
-                    return;
-                }
-                to_array( record.removedNodes ).forEach( function ( removedNode ) {
-                    if ( ( removedNode.nodeType != 1 ) || ( ! removedNode.classList.contains( SCRIPT_NAME + 'Button' ) ) || ( removedNode.classList.contains( 'removed' ) ) ) {
-                        return;
-                    }
-                    // TweetDeck でユーザーをポップアップ→USERS・MENTIONS等のタイムラインを表示したとき、一度挿入したボタンが削除されることがある→再挿入
-                    fire_event( removedNode, 'reinsert' );
                 } );
             } );
         } ).observe( d.body, { childList : true, subtree : true } );
