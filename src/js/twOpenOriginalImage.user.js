@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.5.12
+// @version         0.1.5.13
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -73,6 +73,7 @@ var OPTIONS = {
 ,   SCROLL_STEP : 100 // オーバーレイ表示時の[↑][↓]によるスクロール単位(pixel)
 ,   SMOOTH_SCROLL_STEP : 100 // オーバーレイ表示時のスムーズスクロール単位(pixel)
 ,   SMOOTH_SCROLL_INTERVAL : 10 // オーバーレイ表示時のスムーズスクロールの間隔(ms)
+,   DEFAULT_IMAGE_BACKGROUND_COLOR : 'black' // オーバーレイ表示時の画像背景色初期値 ('black' または 'white')
 };
 
 
@@ -96,8 +97,11 @@ switch ( LANGUAGE ) {
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = '画像を個別に開く';
         OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = '↓ ダウンロード';
         OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = '原寸画像を開く 【原寸びゅー】';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE = '[j]次の画像 [k]前の画像 ';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD = '[d]ダウンロード ';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE = '[j]次の画像 [k]前の画像';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD = '[d]ダウンロード';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR = '[b]背景→';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_BLACK = '黒';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_WHITE = '白';
         break;
     default:
         OPTIONS.TITLE_PREFIX = 'IMG: ';
@@ -108,8 +112,11 @@ switch ( LANGUAGE ) {
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = 'Display one image per page';
         OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = 'Download';
         OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = 'Display original images (' + SCRIPT_NAME + ')';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE = '[j]next [k]previous ';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD = '[d]download ';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE = '[j]next [k]previous';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD = '[d]download';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR = '[b]bgcolor->';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_BLACK = 'black';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_WHITE = 'white';
         break;
 }
 
@@ -155,9 +162,43 @@ var is_tweetdeck = ( function () {
 } )(); // end of is_tweetdeck()
 
 
-function get_img_orig_url( img_url ) {
-    return img_url.replace( /:\w*$/, '' ) + ':orig';
-} // end of get_img_orig_url()
+function get_img_extension( img_url, extension_list ) {
+    var extension = '',
+        extension_list = ( extension_list ) ? extension_list : [ 'png', 'jpg', 'gif' ];
+    
+    if ( img_url.match( new RegExp( '\.(' + extension_list.join('|') + ')' ) ) ) {
+        extension = RegExp.$1;
+    }
+    return extension;
+} // end of get_img_extension()
+
+
+function get_img_kind( img_url ) {
+    var kind = 'medium';
+    
+    if ( img_url.match( /:(\w*)$/ ) ) {
+        kind = RegExp.$1;
+    }
+    return kind;
+} // end of get_img_kind()
+
+
+function get_img_url( img_url, kind ) {
+    if ( ! kind ) {
+        kind = '';
+    }
+    else {
+        if ( kind.search( ':' ) != 0 ) {
+            kind = ':' + kind;
+        }
+    }
+    return img_url.replace( /:\w*$/, '' ) + kind;
+} // end of get_img_url()
+
+
+function get_img_url_orig( img_url ) {
+    return get_img_url( img_url, 'orig' );
+} // end of get_img_url_orig()
 
 
 function has_some_classes( node, class_list ) {
@@ -293,13 +334,78 @@ function initialize_download_helper() {
         return true;
     }
     
+    if ( d.querySelector( 'form.search-404' ) ) {
+        var extension_list = [ 'png', 'jpg', 'gif' ],
+            current_extension = get_img_extension( img_url, extension_list );
+        
+        if ( ! current_extension ) {
+            return;
+        }
+        
+        extension_list.forEach( function( extension ) {
+            if ( current_extension == extension ) {
+                return;
+            }
+            var try_img = new Image(),
+                try_url = img_url.replace( '.' + current_extension, '.' + extension );
+            
+            try_img.addEventListener( 'load', function ( event ) {
+                w.location.replace( try_url );
+            }, false );
+            
+            try {
+                try_img.src = try_url;
+            }
+            catch ( error ) {
+                //console.error( error );
+                // TODO: Firefox だとうまくいかない
+                // Content Security Policy: ページの設定により次のリソースの読み込みをブロックしました: (try_url) ("img-src https://abs.twimg.com https://ssl.google-analytics.com http://www.google-analytics.com")
+            }
+        } );
+        
+        return;
+    }
+    
     // 通常の window(top) として開いた場合、もしくは本スクリプトにより window.open() で開いた場合
     var link_container = d.createElement( 'div' ),
-        link_container_style = link_container.style;
+        link_container_style = link_container.style,
+        kind_list = [ 'thumb', 'small', 'medium', 'large', 'orig' ],
+        current_kind = get_img_kind( img_url );
     
+    link.style.marginRight = '6px';
     link_container_style.margin = '2px 0 1px 0';
+    link_container_style.fontFamily = 'Arial, "ヒラギノ角ゴ Pro W3", "Hiragino Kaku Gothic Pro", Osaka, メイリオ, Meiryo, "ＭＳ Ｐゴシック", "MS PGothic", sans-serif';
+    
     link_container.appendChild( link );
+    
+    kind_list.forEach( function ( kind ) {
+        var kind_link = d.createElement( 'a' ),
+            kind_link_style = kind_link.style;
+        
+        if ( kind == current_kind ) {
+            kind_link_style.color = 'olive';
+        }
+        else {
+            kind_link.href = get_img_url( img_url, kind );
+        }
+        kind_link_style.fontSize = '14px';
+        kind_link_style.fontWeight = 'bolder';
+        kind_link_style.background = 'white';
+        kind_link_style.margin = '0 2px';
+        kind_link_style.padding = '2px 4px';
+        kind_link.appendChild( d.createTextNode( kind ) );
+        
+        link_container.appendChild( kind_link );
+    } );
+    
     d.body.insertBefore( link_container, d.body.firstChild );
+    
+    var img_shrink_to_fit = d.querySelector( 'img.shrinkToFit' );
+    
+    if ( img_shrink_to_fit ) {
+        // Firefox 対策（画像が position: absolute; top: 0; なので、リンクが隠れてしまう）
+        img_shrink_to_fit.style.top = '34px';
+    }
     
     return true;
 } // end of initialize_download_helper()
@@ -483,6 +589,18 @@ function initialize( user_options ) {
                 img_link_container_style.textAlign = 'center';
                 
                 return img_link_container_template;
+            } )(),
+            
+            help_item_template = ( function () {
+                var help_item_template = d.createElement( 'span' ),
+                    help_item_template_style = help_item_template.style;
+                
+                help_item_template_style.className = 'help-item';
+                help_item_template_style.marginRight = '4px';
+                help_item_template_style.fontSize = '14px';
+                help_item_template_style.fontWeight = 'normal';
+                
+                return help_item_template;
             } )(),
             
             download_link_container_template = ( function () {
@@ -896,8 +1014,6 @@ function initialize( user_options ) {
                         image_overlay_shortcut_help.className = SCRIPT_NAME + '_shortcut_help_overlay';
                         image_overlay_shortcut_help_style.cssFloat = 'left';
                         image_overlay_shortcut_help_style.margin = '2px 8px';
-                        image_overlay_shortcut_help_style.fontWeight = 'normal';
-                        image_overlay_shortcut_help_style.fontSize = '14px';
                         
                         return image_overlay_shortcut_help;
                     } )(),
@@ -1035,8 +1151,8 @@ function initialize( user_options ) {
         
         function show_overlay( img_urls, tweet_url, title, start_img_url ) {
             if ( image_overlay_container.style.display != 'none' ) {
-                // TODO: 重複して呼ばれるケース(不正な動作)に対するガード
                 //console.error( 'show_overlay(): duplicate called' );
+                // TODO: 重複して呼ばれるケース(不正な動作)に対するガード
                 return;
             }
             
@@ -1069,6 +1185,7 @@ function initialize( user_options ) {
                 if ( is_tweetdeck() ) {
                     html_style.overflowY = saved_html_overflowY;
                 }
+                image_overlay_container.removeEventListener( 'toggle-image-background-color', toggle_image_background_color, false );
                 image_overlay_container.removeEventListener( 'click', close_image_overlay_container, false );
                 image_overlay_header.removeEventListener( 'click', close_image_overlay_container, false );
                 image_overlay_close_link.removeEventListener( 'click', close_image_overlay_container, false );
@@ -1096,15 +1213,53 @@ function initialize( user_options ) {
             clear_node( image_overlay_shortcut_help );
             
             if ( 1 < image_overlay_image_container.querySelectorAll( '.image-link-container' ).length ) {
-                image_overlay_shortcut_help.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE ) );
+                var help_move = import_node( help_item_template );
+                
+                help_move.classList.add( 'help-move' );
+                help_move.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE ) );
+                image_overlay_shortcut_help.appendChild( help_move );
             }
             if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID && ( ! is_ie() ) ) {
-                image_overlay_shortcut_help.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD ) );
+                var help_download = import_node( help_item_template );
+                
+                help_download.classList.add( 'help-download' );
+                help_download.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD ) );
+                image_overlay_shortcut_help.appendChild( help_download );
             }
+            
+            
+            var toggle_image_background_color = ( function () {
+                var image_background_color = OPTIONS.DEFAULT_IMAGE_BACKGROUND_COLOR,
+                    help = import_node( help_item_template );
+                
+                help.classList.add( 'help-change-bgcolor' );
+                image_overlay_shortcut_help.appendChild( help );
+                
+                function change_background_color( background_color ) {
+                    to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) ).forEach( function ( img ) {
+                        img.style.background = background_color;
+                    } );
+                    
+                    clear_node( help );
+                    help.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR + OPTIONS[ ( background_color == 'white' ) ? 'HELP_OVERLAY_SHORTCUT_BGCOLOR_BLACK' : 'HELP_OVERLAY_SHORTCUT_BGCOLOR_WHITE' ] ) );
+                    
+                    image_background_color = background_color;
+                } // end of change_help()
+                
+                change_background_color( image_background_color );
+                
+                function toggle_image_background_color( event ) {
+                    change_background_color( ( image_background_color == 'white' ) ? 'black' : 'white' );
+                } // end of toggle_image_background_color()
+                
+                return toggle_image_background_color;
+            } )(); // end of toggle_image_background_color()
+            
             
             image_overlay_close_link.addEventListener( 'click', close_image_overlay_container, false );
             image_overlay_header.addEventListener( 'click', close_image_overlay_container, false );
             image_overlay_container.addEventListener( 'click', close_image_overlay_container, false );
+            image_overlay_container.addEventListener( 'toggle-image-background-color', toggle_image_background_color, false );
             
             if ( is_tweetdeck() ) {
                 html_style.overflowY = 'hidden';
@@ -1239,7 +1394,7 @@ function initialize( user_options ) {
             
             to_array( img_objects ).forEach( function ( img ) {
                 if ( img.src ) {
-                    var img_url = get_img_orig_url( img.src );
+                    var img_url = get_img_url_orig( img.src );
                     
                     img_urls.push( img_url );
                 }
@@ -1247,7 +1402,7 @@ function initialize( user_options ) {
                     var img_url = img.style.backgroundImage && img.style.backgroundImage.match( /url\(['"\s]*(.*?)['"\s]*\)/ )[1];
                     
                     if ( img_url ) {
-                        img_url = get_img_orig_url( img_url );
+                        img_url = get_img_url_orig( img_url );
                         img_urls.push( img_url );
                     }
                 }
@@ -1334,7 +1489,7 @@ function initialize( user_options ) {
                         event.preventDefault();
                         
                         if ( img.src ) {
-                            button.setAttribute( 'data-target-img-url', get_img_orig_url( img.src ) );
+                            button.setAttribute( 'data-target-img-url', get_img_url_orig( img.src ) );
                             button.click();
                         }
                         
@@ -1570,6 +1725,9 @@ function initialize( user_options ) {
                 else {
                     fire_event( image_overlay_container, 'page-down' );
                 }
+                break;
+            case 66 : // [b]
+                fire_event( image_overlay_container, 'toggle-image-background-color' );
                 break;
             case 68 : // [d]
                 fire_event( image_overlay_container, 'download-image' );
