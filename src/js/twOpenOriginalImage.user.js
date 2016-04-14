@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.5.16
+// @version         0.1.5.17
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -729,8 +729,7 @@ function initialize( user_options ) {
                                     download_link.style.background = 'lightyellow';
                                 }
                                 
-                                clear_node( image_overlay_status_container );
-                                image_overlay_status_container.appendChild( d.createTextNode( target_container.getAttribute( 'data-image-number' ) + ' / ' + target_container.getAttribute( 'data-image-total' ) ) );
+                                update_overlay_status( target_container );
                             }
                             
                             if ( ! scroll_to ) {
@@ -993,7 +992,7 @@ function initialize( user_options ) {
                         image_overlay_loading_style.bottom = 0;
                         image_overlay_loading_style.left = 0;
                         image_overlay_loading_style.zIndex = 10010;
-                        image_overlay_loading_style.background = 'white';
+                        image_overlay_loading_style.background = 'rgba( 255, 255, 255, 0.8 )';
                         
                         loading.src = 'https://abs.twimg.com/a/1460504487/img/t1/spinner-rosetta-gray-32x32.gif';
                         loading_style.position = 'absolute';
@@ -1002,6 +1001,7 @@ function initialize( user_options ) {
                         loading_style.bottom = 0;
                         loading_style.left = 0;
                         loading_style.margin = 'auto';
+                        loading_style.opacity = 0.8;
                         
                         image_overlay_loading.appendChild( loading );
                         
@@ -1185,6 +1185,15 @@ function initialize( user_options ) {
         } // end of add_images_to_page()
         
         
+        function update_overlay_status( target_container ) {
+            if ( ! target_container ) {
+                return;
+            }
+            clear_node( image_overlay_status_container );
+            image_overlay_status_container.appendChild( d.createTextNode( target_container.getAttribute( 'data-image-number' ) + ' / ' + target_container.getAttribute( 'data-image-total' ) ) );
+        } // end of update_overlay_status()
+        
+        
         function show_overlay( img_urls, tweet_url, title, start_img_url ) {
             if ( image_overlay_container.style.display != 'none' ) {
                 //console.error( 'show_overlay(): duplicate called' );
@@ -1248,6 +1257,8 @@ function initialize( user_options ) {
                     fire_event( image_overlay_container, 'image-init' );
                 }
             } );
+            
+            update_overlay_status( image_overlay_container.querySelector( '.image-link-container.start' ) );
             
             clear_node( image_overlay_shortcut_help );
             
