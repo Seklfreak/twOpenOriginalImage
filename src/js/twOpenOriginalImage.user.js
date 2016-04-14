@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.5.14
+// @version         0.1.5.15
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -319,14 +319,14 @@ function initialize_download_helper() {
         return false;
     }
     
-    if ( ( ! OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID ) || ( is_ie() ) ) {
+    if ( ! OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID ) {
         return true;
     }
     
     var img_url = w.location.href,
-        link = create_download_link( img_url );
+        link = ( is_ie() ) ? null : create_download_link( img_url );
     
-    if ( w.name == SCRIPT_NAME + '_download_frame' ) {
+    if ( link && ( w.name == SCRIPT_NAME + '_download_frame' ) ) {
         // 本スクリプトによりダウンロード用 IFRAME 経由で開いた場合
         d.documentElement.appendChild( link );
         link.click(); // ダウンロード開始
@@ -372,11 +372,13 @@ function initialize_download_helper() {
         kind_list = [ 'thumb', 'small', 'medium', 'large', 'orig' ],
         current_kind = get_img_kind( img_url );
     
-    link.style.marginRight = '6px';
     link_container_style.margin = '2px 0 1px 0';
     link_container_style.fontFamily = 'Arial, "ヒラギノ角ゴ Pro W3", "Hiragino Kaku Gothic Pro", Osaka, メイリオ, Meiryo, "ＭＳ Ｐゴシック", "MS PGothic", sans-serif';
     
-    link_container.appendChild( link );
+    if ( link ) {
+        link.style.marginRight = '6px';
+        link_container.appendChild( link );
+    }
     
     kind_list.forEach( function ( kind ) {
         var kind_link = d.createElement( 'a' ),
