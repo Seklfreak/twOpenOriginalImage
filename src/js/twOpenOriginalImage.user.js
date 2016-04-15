@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.5.17
+// @version         0.1.6.1
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -73,6 +73,7 @@ var OPTIONS = {
 ,   SCROLL_STEP : 100 // オーバーレイ表示時の[↑][↓]によるスクロール単位(pixel)
 ,   SMOOTH_SCROLL_STEP : 100 // オーバーレイ表示時のスムーズスクロール単位(pixel)
 ,   SMOOTH_SCROLL_INTERVAL : 10 // オーバーレイ表示時のスムーズスクロールの間隔(ms)
+,   DEFAULT_IMAGE_WIDTH : 'fit' // オーバーレイ表示時の画像幅初期値 ('fit' または 'full')
 ,   DEFAULT_IMAGE_BACKGROUND_COLOR : 'black' // オーバーレイ表示時の画像背景色初期値 ('black' または 'white')
 };
 
@@ -97,9 +98,13 @@ switch ( LANGUAGE ) {
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = '画像を個別に開く';
         OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = '↓ ダウンロード';
         OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = '原寸画像を開く 【原寸びゅー】';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE = '[j]次の画像 [k]前の画像';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_NEXT = '[j]次の画像';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_PREVIOUS = '[k]前の画像';
         OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD = '[d]ダウンロード';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR = '[b]背景→';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH = '[w]幅:';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH_FULL = '原寸';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH_FIT = '調整';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR = '[b]背景:';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_BLACK = '黒';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_WHITE = '白';
         break;
@@ -112,13 +117,45 @@ switch ( LANGUAGE ) {
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = 'Display one image per page';
         OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = 'Download';
         OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = 'Display original images (' + SCRIPT_NAME + ')';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE = '[j]next [k]previous';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_NEXT = '[j]next';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_PREVIOUS = '[k]previous';
         OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD = '[d]download';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR = '[b]bgcolor->';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH = '[w]width:';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH_FULL = 'full';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH_FIT = 'fit';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR = '[b]bgcolor:';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_BLACK = 'black';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_WHITE = 'white';
         break;
 }
+
+
+function to_array( array_like_object ) {
+    return Array.prototype.slice.call( array_like_object );
+} // end of to_array()
+
+
+var object_extender = ( function () {
+    function object_extender( base_object ) {
+        var template = object_extender.template,
+            base_object = template.prototype = base_object,
+            expanded_object = new template(),
+            object_list = to_array( arguments );
+        
+        object_list.shift();
+        object_list.forEach( function ( object ) {
+            Object.keys( object ).forEach( function ( name ) {
+                expanded_object[ name ] = object[ name ];
+            } );
+        } );
+        
+        return expanded_object;
+    } // end of object_extender()
+    
+    object_extender.template = function () {};
+    
+    return object_extender;
+} )(); // end of object_extender()
 
 
 var is_firefox = ( function () {
@@ -263,6 +300,249 @@ function clear_node( node ) {
 } // end of clear_node()
 
 
+var escape_html = ( function () {
+    var escape_map = {
+            '&' : '&amp;'
+        ,   '"' : '&quot;'
+        ,   '\'' : '&#39;'
+        ,   '<' : '&lt;'
+        ,   '>' : '&gt;'
+        },
+        re_escape = /[&"'<>]/g;
+    
+    function escape_char( char ) {
+        if ( ! ( escape_map.hasOwnProperty( char ) ) ) {
+            return char;
+        }
+        return escape_map[ char ];
+    }
+    
+    function escape_html( html ) {
+        return String( html ).replace( re_escape, escape_char );
+    }
+    
+    return escape_html;
+} )(); // end of escape_html()
+
+
+function get_scroll_top( doc ) {
+    if ( ! doc ) {
+        doc = d;
+    }
+    return ( doc.body.scrollTop || doc.documentElement.scrollTop );
+} // end of get_scroll_top()
+
+
+function get_element_position( element, win ) {
+    if ( ! win ) {
+        win = w;
+    }
+    var rect = element.getBoundingClientRect();
+    
+    return {
+        x : rect.left + win.pageXOffset
+    ,   y : rect.top + win.pageYOffset
+    };
+} // end of get_element_position()
+
+
+function fire_event( target_element, event_kind, doc ) {
+    if ( ! doc ) {
+        doc = d;
+    }
+    var cutsom_event = doc.createEvent( 'HTMLEvents' );
+    
+    cutsom_event.initEvent( event_kind, true, false );
+    target_element.dispatchEvent( cutsom_event );
+} // end of fire_event()
+
+
+function get_mouse_position( event ) {
+    var mouse_position = {
+            x : event.pageX
+        ,   y : event.pageY
+        };
+    
+    return mouse_position;
+} // end of get_mouse_position()
+
+
+var event_functions = ( function() {
+    var event_dict = {};
+    
+    
+    function add_event( target, event_name, event_function, for_storage ) {
+        if ( ! for_storage ) {
+            target.addEventListener( event_name, event_function, false );
+            return;
+        }
+        
+        var self = this;
+        
+        function _event_function() {
+            event_function.apply( self, arguments );
+        } // end of _event_function()
+        
+        target.addEventListener( event_name, _event_function, false );
+        
+        var event_items = event_dict[ event_name ];
+        
+        if ( ! event_items ) {
+            event_items = event_dict[ event_name ] = [];
+        }
+        
+        event_items.push( {
+            target : target
+        ,   event_function : event_function
+        ,   _event_function : _event_function
+        } );
+    } // end of add_event()
+    
+    
+    function remove_event( target, event_name, event_function ) {
+        var self = this,
+            event_items = event_dict[ event_name ],
+            is_found = false;
+        
+        if ( event_items ) {
+            event_dict[ event_name ] = event_items.filter( function ( event_item ) {
+                if ( ( event_item.target === target ) && ( ( ! event_function ) || ( event_item.event_function === event_function ) ) ) {
+                    target.removeEventListener( event_name, event_item._event_function, false );
+                    is_found = true;
+                    return false;
+                }
+                return true;
+            } );
+        }
+        
+        if ( ! is_found && event_function ) {
+            target.removeEventListener( event_name, event_function, false );
+        }
+    } // end of remove_event()
+    
+    
+    return {
+        add_event : add_event
+    ,   remove_event : remove_event
+    };
+} )();
+
+
+var add_event = event_functions.add_event,
+    remove_event = event_functions.remove_event;
+
+
+var DragScroll = {
+    is_dragging : false
+,   element : null
+,   mouse_x : 0
+,   mouse_y : 0
+
+
+,   init : function ( element ) {
+        var self = this;
+        
+        self.element = element;
+        
+        return self;
+    
+    } // end of init()
+
+
+,   start : function () {
+        var self = this,
+            element = self.element;
+        
+        self._add_event( element, 'mousedown', self._drag_start, true );
+        self._add_event( element, 'mousemove', self._drag_move, true );
+        
+        return self;
+    } // end of start()
+
+
+,   stop : function () {
+        var self = this,
+            element = self.element;
+        
+        self._remove_event( self.element, 'mousemove' );
+        self._remove_event( self.element, 'mousedown' );
+        
+        return self;
+    } // end of stop()
+
+
+,   _add_event : function ( target, event_name, event_function ) {
+        var self = this;
+        
+        add_event.apply( self, arguments );
+    } // end of _add_event()
+
+
+,   _remove_event : function ( target, event_name, event_function ) {
+        var self = this;
+        
+        remove_event.apply( self, arguments );
+    } // end of _remove_event()
+
+
+,   _drag_start : function ( event ) {
+        var self = this,
+            element = self.element;
+        
+        if ( self.is_dragging ) {
+            return;
+        }
+        self.is_dragging = true;
+        
+        var mouse_position = get_mouse_position( event );
+        
+        self.mouse_x = mouse_position.x;
+        self.mouse_y = mouse_position.y;
+        
+        w.getSelection().removeAllRanges();
+    } // end of drag_start()
+
+
+,   _drag_stop : function ( event ) {
+        var self = this,
+            element = self.element;
+        
+        self.is_dragging = false;
+        
+        w.getSelection().removeAllRanges();
+    } // end of drag_stop()
+
+
+,   _drag_move : function ( event ) {
+        var self = this,
+            element = self.element;
+        
+        if ( ! self.is_dragging ) {
+            return;
+        }
+        
+        if ( ! event.buttons ) {
+            self._drag_stop( event );
+            return;
+        }
+        
+        var mouse_position = get_mouse_position( event ),
+            dx = mouse_position.x - self.mouse_x,
+            dy = mouse_position.y - self.mouse_y;
+        
+        element.scrollLeft -= dx;
+        element.scrollTop -= dy;
+        
+        self.mouse_x = mouse_position.x;
+        self.mouse_y = mouse_position.y;
+        
+        w.getSelection().removeAllRanges();
+    } // end of drag_move()
+
+
+};
+
+
 var create_download_link = ( function () {
     var link_template = d.createElement( 'a' ),
         link_style = link_template.style;
@@ -290,14 +570,14 @@ var create_download_link = ( function () {
         
         link_style.borderColor = link_border_color;
         
-        link.addEventListener( 'mouseover', function ( event ) {
+        add_event( link, 'mouseover', function ( event ) {
             link_border_color = link_style.borderColor;
             link_style.borderColor = 'red';
-        }, false );
+        } );
         
-        link.addEventListener( 'mouseout', function ( event ) {
+        add_event( link, 'mouseout', function ( event ) {
             link_style.borderColor = link_border_color;
-        }, false );
+        } );
         
         link.appendChild( doc.createTextNode( OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT ) );
         
@@ -349,9 +629,9 @@ function initialize_download_helper() {
             var try_img = new Image(),
                 try_url = img_url.replace( '.' + current_extension, '.' + extension );
             
-            try_img.addEventListener( 'load', function ( event ) {
+            add_event( try_img, 'load', function ( event ) {
                 w.location.replace( try_url );
-            }, false );
+            } );
             
             try {
                 try_img.src = try_url;
@@ -439,36 +719,6 @@ function initialize( user_options ) {
         return;
     }
     
-    var escape_html = ( function () {
-        var escape_map = {
-                '&' : '&amp;'
-            ,   '"' : '&quot;'
-            ,   '\'' : '&#39;'
-            ,   '<' : '&lt;'
-            ,   '>' : '&gt;'
-            },
-            re_escape = /[&"'<>]/g;
-        
-        function escape_char( char ) {
-            if ( ! ( escape_map.hasOwnProperty( char ) ) ) {
-                return char;
-            }
-            return escape_map[ char ];
-        }
-        
-        function escape_html( html ) {
-            return String( html ).replace( re_escape, escape_char );
-        }
-        
-        return escape_html;
-    } )(); // end of escape_html()
-    
-    
-    function to_array( array_like_object ) {
-        return Array.apply( null, array_like_object );
-    } // end of to_array()
-    
-    
     function is_valid_url( url ) {
         if ( ! url ) {
             url = w.location.href;
@@ -490,33 +740,131 @@ function initialize( user_options ) {
     } // end of is_valid_url()
     
     
-    function get_scroll_top( doc ) {
-        if ( ! doc ) {
-            doc = d;
-        }
-        return ( doc.body.scrollTop || doc.documentElement.scrollTop );
-    } // end of get_scroll_top()
-    
-    
-    function get_element_top( element, win ) {
-        if ( ! win ) {
-            win = w;
-        }
-        return element.getBoundingClientRect().top + w.pageYOffset;
-    } // end of get_element_top()
-    
-    
-    function fire_event( target_element, event_kind ) {
-        var cutsom_event = d.createEvent( 'HTMLEvents' );
-        
-        cutsom_event.initEvent( event_kind, true, false );
-        target_element.dispatchEvent( cutsom_event );
-    } // end of fire_event()
-    
-    
     var add_open_button = ( function () {
         var button_container_classname = SCRIPT_NAME + 'Button',
             opened_name_map = {},
+            
+            MouseClick = {
+                move_count : 0
+            ,   fullscreen_container : null
+            ,   element : null
+            ,   start_mouse_position : { x : 0, y : 0 }
+                
+                
+            ,   init : function ( fullscreen_container, element ) {
+                    var self = this;
+                    
+                    self.fullscreen_container = fullscreen_container;
+                    self.element = ( element ) ? element : fullscreen_container;
+                    
+                    return self;
+                } // end of init()
+            
+            
+            ,   start : function ( click_function ) {
+                    var self = this,
+                        element = self.element;
+                    
+                    self.click_function = click_function;
+                    
+                    self._add_event( element, 'click', self._click, true );
+                    self._add_event( element, 'mousedown', self._mousedown, true );
+                    self._add_event( element, 'mousemove', self._mousemove, true );
+                    self._add_event( element, 'mouseup', self._mouseup, true );
+                    
+                    return self;
+                } // end of start()
+            
+            
+            ,   stop : function () {
+                    var self = this,
+                        element = self.element;
+                    
+                    self._remove_event( element, 'mouseup' );
+                    self._remove_event( element, 'mousemove' );
+                    self._remove_event( element, 'mousedown' );
+                    self._remove_event( element, 'click' );
+                    
+                    return self;
+                } // end of start()
+            
+            
+            ,   _add_event : function ( target, event_name, event_function ) {
+                    var self = this;
+                    
+                    add_event.apply( self, arguments );
+                } // end of _add_event()
+            
+            
+            ,   _remove_event : function ( target, event_name, event_function ) {
+                    var self = this;
+                    
+                    remove_event.apply( self, arguments );
+                } // end of _remove_event()
+            
+            
+            ,   _mouse_is_on_scrollbar : function ( event ) {
+                    var self = this,
+                        fullscreen_container = self.fullscreen_container,
+                        mouse_x = event.clientX,
+                        mouse_y = event.clientY,
+                        max_x = fullscreen_container.clientWidth,
+                        max_y = fullscreen_container.clientHeight;
+                    
+                    if ( ( mouse_x < 0 || max_x <= mouse_x ) || ( mouse_y < 0 || max_y <= mouse_y ) ) {
+                        return true;
+                    }
+                    
+                    return false;
+                } // end of _mouse_is_on_scrollbar()
+            
+            
+            ,   _click : function ( event ) {
+                    var self = this;
+                    
+                    // デフォルトのクリックイベントは無効化
+                    event.stopPropagation();
+                    event.preventDefault();
+                }
+            
+            
+            ,   _mousedown : function ( event ) {
+                    var self = this;
+                    
+                    self.move_count = 0;
+                    self.start_mouse_position = get_mouse_position( event );
+                } // end of _mousedown()
+            
+            
+            ,   _mousemove : function ( event ) {
+                    self.move_count ++;
+                } // end of _mousemove()
+            
+            
+            ,   _mouseup : function ( event ) {
+                    var self = this,
+                        start_mouse_position = self.start_mouse_position;
+                    
+                    if ( event.button != 0 ) {
+                        // メインボタン以外
+                        return false;
+                    }
+                    
+                    if ( self._mouse_is_on_scrollbar( event ) ) {
+                        return;
+                    }
+                    
+                    var stop_mouse_position = get_mouse_position( event );
+                    
+                    if ( 10 < Math.max( Math.abs( stop_mouse_position.x - start_mouse_position.x ), Math.abs( stop_mouse_position.y - start_mouse_position.y ) ) ) {
+                        return;
+                    }
+                    
+                    if ( typeof self.click_function == 'function' ) {
+                        self.click_function.apply( self, arguments );
+                    }
+                } // end of _mouseup()
+            },
             
             header_template = ( function () {
                 var header_template = d.createElement( 'h1' ),
@@ -601,6 +949,8 @@ function initialize( user_options ) {
                 help_item_template_style.marginRight = '4px';
                 help_item_template_style.fontSize = '14px';
                 help_item_template_style.fontWeight = 'normal';
+                help_item_template_style.pointerEvents = 'auto';
+                help_item_template_style.cursor = 'pointer';
                 
                 return help_item_template;
             } )(),
@@ -769,11 +1119,31 @@ function initialize( user_options ) {
                         } // end of image_overlay_container_scroll_to()
                         
                         
+                        function image_overlay_container_horizontal_scroll_to( options ) {
+                            var options = ( options ) ? options : {},
+                                offset = options.offset,
+                                lock_after_scroll = options.lock_after_scroll;
+                            
+                            if ( lock_after_scroll ) {
+                                // スクロール完了後にウェイトを設ける(mousemove等のイベントをすぐには発火させないため)
+                                lock_mouseover();
+                            }
+                            image_overlay_container.scrollLeft = offset;
+                        } // end of image_overlay_container_horizontal_scroll_to()
+                        
+                        
                         function image_overlay_container_scroll_step( step ) {
                             image_overlay_container_scroll_to( {
                                 offset : image_overlay_container.scrollTop + step
                             } );
                         } // end of image_overlay_container_scroll_step()
+                        
+                        
+                        function image_overlay_container_horizontal_scroll_step( step ) {
+                            image_overlay_container_horizontal_scroll_to( {
+                                offset : image_overlay_container.scrollLeft + step
+                            } );
+                        } // end of image_overlay_container_horizontal_scroll_step()
                         
                         
                         function image_overlay_container_smooth_scroll( options ) {
@@ -825,7 +1195,15 @@ function initialize( user_options ) {
                                 start_container = ( start_container ) ? start_container : image_overlay_container.querySelector( '.image-link-container' );
                             
                             image_link_containers.forEach( function ( image_link_container, index ) {
-                                var image_link = image_link_container.querySelector( '.image-link' );
+                                var image_link = image_link_container.querySelector( '.image-link' ),
+                                    original_image = image_link.querySelector( '.original-image' ),
+                                    mouse_click = object_extender( MouseClick );
+                                
+                                
+                                function disable_event( event ) {
+                                    event.stopPropagation();
+                                    event.preventDefault();
+                                } // end of disable_event( event );
                                 
                                 
                                 function set_focus( event ) {
@@ -847,9 +1225,18 @@ function initialize( user_options ) {
                                 } // end of set_focus_mouseover()
                                 
                                 
-                                image_link.addEventListener( 'click', set_focus );
-                                image_link_container.addEventListener( 'mouseover', set_focus_mouseover );
-                                image_link_container.addEventListener( 'mousemove', set_focus_mouseover );
+                                original_image.setAttribute( 'draggable', false );
+                                add_event( original_image, 'dragstart', disable_event );
+                                
+                                image_link.setAttribute( 'draggable', false );
+                                add_event( image_link, 'dragstart', disable_event );
+                                
+                                mouse_click.init( image_overlay_container, image_link ).start( set_focus );
+                                add_event( image_link_container, 'mouseover', set_focus_mouseover );
+                                add_event( image_link_container, 'mousemove', set_focus_mouseover );
+                                add_event( image_link_container, 'remove-mouse-click-event', function ( event ) {
+                                    mouse_click.stop();
+                                } );
                             } );
                             
                             image_overlay_image_container.style.visibility = 'visible';
@@ -902,75 +1289,85 @@ function initialize( user_options ) {
                             }
                         } // end of image_overlay_container_download_current_image()
                         
-                        image_overlay_container.addEventListener( 'scroll-to-top', function () {
+                        add_event( image_overlay_container, 'scroll-to-top', function () {
                             clear_timerid_list();
                             image_overlay_container_scroll_to( {
                                 offset : 0
                             } );
-                        }, false );
+                        } );
                         
-                        image_overlay_container.addEventListener( 'scroll-to-bottom', function () {
+                        add_event( image_overlay_container, 'scroll-to-bottom', function () {
                             clear_timerid_list();
                             image_overlay_container_scroll_to( {
                                 offset : image_overlay_container.scrollHeight
                             } );
-                        }, false );
+                        } );
                         
-                        image_overlay_container.addEventListener( 'smooth-scroll-to-top', function () {
+                        add_event( image_overlay_container, 'smooth-scroll-to-top', function () {
                             clear_timerid_list();
                             image_overlay_container_smooth_scroll( {
                                 scroll_height : image_overlay_container.scrollTop
                             ,   step : - OPTIONS.SMOOTH_SCROLL_STEP
                             } );
-                        }, false );
+                        } );
                         
-                        image_overlay_container.addEventListener( 'smooth-scroll-to-bottom', function () {
+                        add_event( image_overlay_container, 'smooth-scroll-to-bottom', function () {
                             clear_timerid_list();
                             image_overlay_container_smooth_scroll( {
                                 scroll_height : image_overlay_container.scrollHeight - image_overlay_container.scrollTop
                             ,   step : OPTIONS.SMOOTH_SCROLL_STEP
                             } );
-                        }, false );
+                        } );
                         
-                        image_overlay_container.addEventListener( 'scroll-down', function () {
+                        add_event( image_overlay_container, 'scroll-down', function () {
                             clear_timerid_list();
                             image_overlay_container_scroll_step( OPTIONS.SCROLL_STEP );
-                        }, false );
+                        } );
                         
-                        image_overlay_container.addEventListener( 'scroll-up', function () {
+                        add_event( image_overlay_container, 'scroll-up', function () {
                             clear_timerid_list();
                             image_overlay_container_scroll_step( - OPTIONS.SCROLL_STEP );
-                        }, false );
+                        } );
                         
-                        image_overlay_container.addEventListener( 'page-up', function () {
+                        add_event( image_overlay_container, 'scroll-left', function () {
+                            clear_timerid_list();
+                            image_overlay_container_horizontal_scroll_step( - OPTIONS.SCROLL_STEP );
+                        } );
+                        
+                        add_event( image_overlay_container, 'scroll-right', function () {
+                            clear_timerid_list();
+                            image_overlay_container_horizontal_scroll_step( OPTIONS.SCROLL_STEP );
+                        } );
+                        
+                        add_event( image_overlay_container, 'page-up', function () {
                             clear_timerid_list();
                             image_overlay_container_page_step( -1 );
-                        }, false );
+                        } );
                         
-                        image_overlay_container.addEventListener( 'page-down', function () {
+                        add_event( image_overlay_container, 'page-down', function () {
                             clear_timerid_list();
                             image_overlay_container_page_step();
-                        }, false );
+                        } );
                         
-                        image_overlay_container.addEventListener( 'image-init', function () {
+                        add_event( image_overlay_container, 'image-init', function () {
                             clear_timerid_list();
                             image_overlay_container_image_init();
-                        }, false );
+                        } );
                         
-                        image_overlay_container.addEventListener( 'image-next', function () {
+                        add_event( image_overlay_container, 'image-next', function () {
                             clear_timerid_list();
                             image_overlay_container_image_step();
-                        }, false );
+                        } );
                         
-                        image_overlay_container.addEventListener( 'image-prev', function () {
+                        add_event( image_overlay_container, 'image-prev', function () {
                             clear_timerid_list();
                             image_overlay_container_image_step( -1 );
-                        }, false );
+                        } );
                         
-                        image_overlay_container.addEventListener( 'download-image', function () {
+                        add_event( image_overlay_container, 'download-image', function () {
                             clear_timerid_list();
                             image_overlay_container_download_current_image();
-                        }, false );
+                        } );
                         
                         d.body.appendChild( image_overlay_container );
                         
@@ -1074,7 +1471,9 @@ function initialize( user_options ) {
                         d.body.appendChild( image_overlay_header );
                         
                         return image_overlay_header;
-                    } )();
+                    } )(),
+                    
+                    image_overlay_drag_scroll = object_extender( DragScroll ).init( image_overlay_container );
                 
                 return {
                     container : image_overlay_container
@@ -1084,6 +1483,7 @@ function initialize( user_options ) {
                 ,   close_link : image_overlay_close_link
                 ,   status_container : image_overlay_status_container
                 ,   shortcut_help : image_overlay_shortcut_help
+                ,   drag_scroll : image_overlay_drag_scroll
                 }
             } )(),
             
@@ -1093,7 +1493,22 @@ function initialize( user_options ) {
             image_overlay_header = image_overlay.header,
             image_overlay_close_link = image_overlay.close_link,
             image_overlay_status_container = image_overlay.status_container,
-            image_overlay_shortcut_help = image_overlay.shortcut_help;
+            image_overlay_shortcut_help = image_overlay.shortcut_help,
+            image_overlay_drag_scroll = image_overlay.drag_scroll;
+        
+        
+        function mouse_is_on_scrollbar( event ) {
+            var mouse_x = event.clientX,
+                mouse_y = event.clientY,
+                max_x = image_overlay_container.clientWidth,
+                max_y = image_overlay_container.clientHeight;
+
+            if ( ( mouse_x < 0 || max_x <= mouse_x ) || ( mouse_y < 0 || max_y <= mouse_y ) ) {
+                return true;
+            }
+            
+            return false;
+        } // end of mouse_is_on_scrollbar()
         
         
         function add_images_to_page( img_urls, parent, options ) {
@@ -1122,12 +1537,12 @@ function initialize( user_options ) {
                     download_link.href = img_url;
                     
                     if ( is_bookmarklet() ) {
-                        download_link.addEventListener( 'click', function ( event ) {
+                        add_event( download_link, 'click', function ( event ) {
                             event.stopPropagation();
-                        }, false );
+                        } );
                     }
                     else {
-                        download_link.addEventListener( 'click', function ( event ) {
+                        add_event( download_link, 'click', function ( event ) {
                             event.stopPropagation();
                             event.preventDefault();
                             
@@ -1142,7 +1557,7 @@ function initialize( user_options ) {
                             target_document.documentElement.appendChild( iframe );
                             
                             return false;
-                        }, false );
+                        } );
                     }
                     download_link_container.appendChild( download_link );
                     img_link_container.appendChild( download_link_container );
@@ -1162,16 +1577,17 @@ function initialize( user_options ) {
                     }
                 } // end of check_loaded_image()
                 
-                img.addEventListener( 'load', check_loaded_image );
-                img.addEventListener( 'error', check_loaded_image );
+                add_event( img, 'load', check_loaded_image );
+                add_event( img, 'error', check_loaded_image );
                 
                 img.src = link.href = img_url;
                 
                 link.className = 'image-link';
                 link.appendChild( img );
-                link.addEventListener( 'click', function ( event ) {
+                
+                add_event( link, 'click', function ( event ) {
                     event.stopPropagation();
-                }, false );
+                } );
                 
                 img_link_container.appendChild( link );
                 
@@ -1214,12 +1630,42 @@ function initialize( user_options ) {
                 saved_html_overflowY = html_style.overflowY,
                 saved_body_position = body_style.position,
                 saved_body_overflowY = body_style.overflowY,
-                saved_body_marginRight = body_style.marginRight;
+                saved_body_marginRight = body_style.marginRight,
+                
+                event_list = [],
+                image_overlay_container_mouse_click = object_extender( MouseClick );
+            
+            
+            function add_events() {
+                event_list.forEach( function ( event_item ) {
+                    add_event( event_item.element,  event_item.name, event_item.func, true );
+                } );
+                
+                image_overlay_container_mouse_click.init( image_overlay_container ).start( close_image_overlay_container );
+            } // end of set_events()
+            
+            
+            function remove_events() {
+                var _event_list = event_list.slice( 0 );
+                
+                image_overlay_container_mouse_click.stop();
+                
+                _event_list.reverse();
+                _event_list.forEach( function ( event_item ) {
+                    remove_event( event_item.element, event_item.name, event_item.func );
+                } );
+                
+                to_array( image_overlay_image_container.querySelectorAll( '.image-link-container' ) ).forEach( function ( image_link_container ) {
+                    fire_event( image_link_container, 'remove-mouse-click-event' );
+                } );
+            } // end of remove_events()
             
             
             function close_image_overlay_container( event ) {
                 event.stopPropagation();
                 event.preventDefault();
+                
+                image_overlay_drag_scroll.stop();
                 
                 fire_event( image_overlay_container, 'scroll-to-top' );
                 
@@ -1232,10 +1678,8 @@ function initialize( user_options ) {
                 if ( is_tweetdeck() ) {
                     html_style.overflowY = saved_html_overflowY;
                 }
-                image_overlay_container.removeEventListener( 'toggle-image-background-color', toggle_image_background_color, false );
-                image_overlay_container.removeEventListener( 'click', close_image_overlay_container, false );
-                image_overlay_header.removeEventListener( 'click', close_image_overlay_container, false );
-                image_overlay_close_link.removeEventListener( 'click', close_image_overlay_container, false );
+                
+                remove_events();
                 
                 clear_node( image_overlay_image_container );
                 
@@ -1263,37 +1707,109 @@ function initialize( user_options ) {
             clear_node( image_overlay_shortcut_help );
             
             if ( 1 < image_overlay_image_container.querySelectorAll( '.image-link-container' ).length ) {
-                var help_move = import_node( help_item_template );
+                var help_move_next = import_node( help_item_template ),
+                    help_move_previous = import_node( help_item_template );
                 
-                help_move.classList.add( 'help-move' );
-                help_move.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE ) );
-                image_overlay_shortcut_help.appendChild( help_move );
+                help_move_next.classList.add( 'help-move-next' );
+                help_move_next.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_NEXT ) );
+                add_event( help_move_next, 'click', function ( event ) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    
+                    fire_event( image_overlay_container, 'image-next' );
+                    
+                    return false;
+                } );
+                
+                image_overlay_shortcut_help.appendChild( help_move_next );
+                
+                help_move_previous.classList.add( 'help-move-previous' );
+                help_move_previous.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_PREVIOUS ) );
+                add_event( help_move_previous, 'click', function ( event ) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    
+                    fire_event( image_overlay_container, 'image-prev' );
+                    
+                    return false;
+                } );
+                
+                image_overlay_shortcut_help.appendChild( help_move_previous );
             }
+            
             if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID && ( ! is_ie() ) ) {
                 var help_download = import_node( help_item_template );
                 
                 help_download.classList.add( 'help-download' );
                 help_download.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD ) );
+                
+                add_event( help_download, 'click', function ( event ) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    
+                    fire_event( image_overlay_container, 'download-image' );
+                    
+                    return false;
+                } );
+                
                 image_overlay_shortcut_help.appendChild( help_download );
             }
+            
+            
+            var toggle_image_width = ( function () {
+                var image_width = OPTIONS.DEFAULT_IMAGE_WIDTH,
+                    help = import_node( help_item_template );
+                
+                help.classList.add( 'help-toggle-width' );
+                
+                add_event( help, 'click', function ( event ) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    
+                    fire_event( image_overlay_container, 'toggle-image-width' );
+                    
+                    return false;
+                } );
+                
+                image_overlay_shortcut_help.appendChild( help );
+                
+                function change_width( width ) {
+                    var maxWidth = ( width == 'fit' ) ? '100%' : 'none';
+                    
+                    to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) ).forEach( function ( img ) {
+                        img.style.maxWidth = maxWidth;
+                    } );
+                    
+                    clear_node( help );
+                    help.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH + OPTIONS[ ( width == 'full' ) ? 'HELP_OVERLAY_SHORTCUT_WIDTH_FULL' : 'HELP_OVERLAY_SHORTCUT_WIDTH_FIT' ] ) );
+                    
+                    image_width = width;
+                } // end of change_help()
+                
+                change_width( image_width );
+                
+                function toggle_image_width( event ) {
+                    change_width( ( image_width == 'fit' ) ? 'full' : 'fit' );
+                } // end of toggle_image_width()
+                
+                return toggle_image_width;
+            } )(); // end of toggle_image_width()
             
             
             var toggle_image_background_color = ( function () {
                 var image_background_color = OPTIONS.DEFAULT_IMAGE_BACKGROUND_COLOR,
                     help = import_node( help_item_template );
                 
-                help.classList.add( 'help-change-bgcolor' );
-                help.style.pointerEvents = 'auto';
-                help.style.cursor = 'pointer';
+                help.classList.add( 'help-toggle-bgcolor' );
                 
-                help.addEventListener( 'click', function ( event ) {
+                add_event( help, 'click', function ( event ) {
                     event.stopPropagation();
                     event.preventDefault();
                     
                     fire_event( image_overlay_container, 'toggle-image-background-color' );
                     
                     return false;
-                }, false );
+                } );
                 
                 image_overlay_shortcut_help.appendChild( help );
                 
@@ -1303,7 +1819,7 @@ function initialize( user_options ) {
                     } );
                     
                     clear_node( help );
-                    help.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR + OPTIONS[ ( background_color == 'white' ) ? 'HELP_OVERLAY_SHORTCUT_BGCOLOR_BLACK' : 'HELP_OVERLAY_SHORTCUT_BGCOLOR_WHITE' ] ) );
+                    help.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR + OPTIONS[ ( background_color == 'black' ) ? 'HELP_OVERLAY_SHORTCUT_BGCOLOR_BLACK' : 'HELP_OVERLAY_SHORTCUT_BGCOLOR_WHITE' ] ) );
                     
                     image_background_color = background_color;
                 } // end of change_help()
@@ -1311,17 +1827,18 @@ function initialize( user_options ) {
                 change_background_color( image_background_color );
                 
                 function toggle_image_background_color( event ) {
-                    change_background_color( ( image_background_color == 'white' ) ? 'black' : 'white' );
+                    change_background_color( ( image_background_color == 'black' ) ? 'white' : 'black' );
                 } // end of toggle_image_background_color()
                 
                 return toggle_image_background_color;
             } )(); // end of toggle_image_background_color()
             
             
-            image_overlay_close_link.addEventListener( 'click', close_image_overlay_container, false );
-            image_overlay_header.addEventListener( 'click', close_image_overlay_container, false );
-            image_overlay_container.addEventListener( 'click', close_image_overlay_container, false );
-            image_overlay_container.addEventListener( 'toggle-image-background-color', toggle_image_background_color, false );
+            event_list.push( { element : image_overlay_close_link, name : 'click', func : close_image_overlay_container } );
+            event_list.push( { element : image_overlay_header, name : 'click', func : close_image_overlay_container } );
+            event_list.push( { element : image_overlay_container, name : 'toggle-image-width', func : toggle_image_width } );
+            event_list.push( { element : image_overlay_container, name : 'toggle-image-background-color', func : toggle_image_background_color } );
+            add_events();
             
             if ( is_tweetdeck() ) {
                 html_style.overflowY = 'hidden';
@@ -1331,6 +1848,8 @@ function initialize( user_options ) {
             image_overlay_header_style.display = 'block';
             image_overlay_loading_style.display = 'block';
             image_overlay_container_style.display = 'block';
+            
+            image_overlay_drag_scroll.start();
             
         } // end of show_overlay()
         
@@ -1407,9 +1926,9 @@ function initialize( user_options ) {
                 // - 一瞬書き換え結果の表示がされた後、空の("<head></head><body></body>"だけの)HTMLになったり、titleだけが書き換わった状態になったりする
                 // - 元のページが固まってしまう場合がある
                 // - Firefoxを再起動すると解消されたりと、結果が安定しない
-                //child_window.addEventListener( 'load', function ( event ) {
+                //add_event( child_window, 'load', function ( event ) {
                 //    page_onload();
-                //}, false );
+                //} );
                 
                 setTimeout( function () {
                     page_onload();
@@ -1477,7 +1996,7 @@ function initialize( user_options ) {
             var button_container = button_container_template.cloneNode( true ),
                 button = button_container.querySelector( 'input[type="button"]' );
             
-            button.addEventListener( 'click', function ( event ) {
+            add_event( button, 'click', function ( event ) {
                 event.stopPropagation();
                 
                 var focused_img_url = button.getAttribute( 'data-target-img-url' ),
@@ -1509,7 +2028,7 @@ function initialize( user_options ) {
                     } );
                 }
                 return false;
-            }, false );
+            } );
             
             
             function insert_button( event ) {
@@ -1530,7 +2049,8 @@ function initialize( user_options ) {
                 }
             } // end of insert_button()
             
-            button_container.addEventListener( 'reinsert', insert_button, false );
+            
+            add_event( button_container, 'reinsert', insert_button );
             
             insert_button();
             
@@ -1564,14 +2084,14 @@ function initialize( user_options ) {
                     
                     
                     function remove_image_events( event ) {
-                        img.removeEventListener( 'remove-image-events', remove_image_events, false );
-                        img.removeEventListener( 'click', open_target_image, false );
+                        remove_event( img, 'remove-image-events', remove_image_events );
+                        remove_event( img, 'click', open_target_image );
                         img.classList.remove( SCRIPT_NAME + '_touched' );
                     } // end of remove_image_events()
                     
                     
-                    img.addEventListener( 'click', open_target_image, false );
-                    img.addEventListener( 'remove-image-events', remove_image_events, false );
+                    add_event( img, 'click', open_target_image );
+                    add_event( img, 'remove-image-events', remove_image_events );
                     
                     if ( img.classList.contains( 'media-image' ) ) {
                         img.style.pointerEvents = 'auto';
@@ -1796,27 +2316,32 @@ function initialize( user_options ) {
                     fire_event( image_overlay_container, 'page-down' );
                 }
                 break;
-            case 66 : // [b]
-                fire_event( image_overlay_container, 'toggle-image-background-color' );
-                break;
-            case 68 : // [d]
-                fire_event( image_overlay_container, 'download-image' );
-                break;
             case 74 : // [j]
                 fire_event( image_overlay_container, 'image-next' );
                 break;
             case 75 : // [k]
                 fire_event( image_overlay_container, 'image-prev' );
                 break;
-            case 37 : // [←]
+            case 68 : // [d]
+                fire_event( image_overlay_container, 'download-image' );
+                break;
+            case 87 : // [w]
+                fire_event( image_overlay_container, 'toggle-image-width' );
+                break;
+            case 66 : // [b]
+                fire_event( image_overlay_container, 'toggle-image-background-color' );
                 break;
             case 38 : // [↑]
                 fire_event( image_overlay_container, 'scroll-up' );
                 break;
-            case 39 : // [→]
-                break;
             case 40 : // [↓]
                 fire_event( image_overlay_container, 'scroll-down' );
+                break;
+            case 37 : // [←]
+                fire_event( image_overlay_container, 'scroll-left' );
+                break;
+            case 39 : // [→]
+                fire_event( image_overlay_container, 'scroll-right' );
                 break;
             case 36 : // [Home]
                 fire_event( image_overlay_container, 'smooth-scroll-to-top' );
@@ -1858,7 +2383,7 @@ function initialize( user_options ) {
             return true;
         } // end of is_valid()
         
-        d.body.addEventListener( 'keypress', function ( event ) {
+        add_event( d.body, 'keypress', function ( event ) {
             var active_element = d.activeElement;
             
             if ( ! is_valid( active_element ) ) {
@@ -1888,9 +2413,9 @@ function initialize( user_options ) {
                     }
                     break;
             }
-        }, false );
+        } );
         
-        d.body.addEventListener( 'keydown', function ( event ) {
+        add_event( d.body, 'keydown', function ( event ) {
             var active_element = d.activeElement;
             
             if ( ! is_valid( active_element ) ) {
@@ -1913,7 +2438,7 @@ function initialize( user_options ) {
                     }
                     break;
             }
-        }, false );
+        } );
         
     } // end of start_key_observer()
     
@@ -1939,9 +2464,9 @@ function initialize( user_options ) {
         } // end of check_obstacling_node()
         
         
-        d.addEventListener( 'contextmenu', function ( event ) {
+        add_event( d, 'contextmenu', function ( event ) {
             check_obstacling_node( event.target );
-        }, false );
+        } );
     
     } // end of start_mouse_observer()
     
