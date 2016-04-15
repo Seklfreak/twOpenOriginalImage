@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.6.1
+// @version         0.1.6.2
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -934,7 +934,7 @@ function initialize( user_options ) {
                 
                 img_link_container_template.className = 'image-link-container';
                 img_link_container_style.clear = 'both';
-                img_link_container_style.margin = '0 0 8px 0';
+                img_link_container_style.margin = '0 auto 8px auto';
                 img_link_container_style.padding = '0 0 4px 0';
                 img_link_container_style.textAlign = 'center';
                 
@@ -1774,10 +1774,24 @@ function initialize( user_options ) {
                 image_overlay_shortcut_help.appendChild( help );
                 
                 function change_width( width ) {
-                    var maxWidth = ( width == 'fit' ) ? '100%' : 'none';
+                    var maxWidth = ( width == 'full' ) ? 'none' : '100%',
+                        width_max = 0;
                     
                     to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) ).forEach( function ( img ) {
                         img.style.maxWidth = maxWidth;
+                        
+                        if ( width_max < img.naturalWidth ) {
+                            width_max = img.naturalWidth;
+                        }
+                    } );
+                    
+                    to_array( image_overlay_image_container.querySelectorAll( '.image-link-container' ) ).forEach( function ( image_link_container ) {
+                        if ( width == 'full' ) {
+                            image_link_container.style.width = width_max + 'px';
+                        }
+                        else {
+                            image_link_container.style.width = 'auto';
+                        }
                     } );
                     
                     clear_node( help );
