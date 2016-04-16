@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.6.2
+// @version         0.1.6.3
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -61,6 +61,7 @@ var OPTIONS = {
 ,   DISPLAY_ALL_IN_ONE_PAGE : true // true: [Click] 全ての画像を同一ページで開く / [Alt]+[Click] 画像を個別に開く、false: 左記の逆の動作
 ,   DISPLAY_OVERLAY : true // true: 全ての画像を同一ページで開く際に(別タブで開かず)タイムライン上にオーバーレイする
 ,   OVERRIDE_CLICK_EVENT : true // true: ツイート中の画像クリックで原寸画像を開く
+,   OVERRIDE_GALLERY_FOR_TWEETDECK : true // true: TweetDeck のギャラリー(画像サムネイルクリック時のポップアップ)を置換(OVERRIDE_CLICK_EVENT true 時のみ有効)
 ,   DOWNLOAD_HELPER_SCRIPT_IS_VALID : true // true: ダウンロードヘルパー機能有効
 
 ,   OPERATION : true // true: 動作中、false: 停止中
@@ -1987,6 +1988,17 @@ function initialize( user_options ) {
                 return null;
             }
             
+            
+            function get_img_url_from_background( element ) {
+                var bgimage = element.style.backgroundImage;
+                
+                if ( ! bgimage || ! bgimage.match( /url\(['"\s]*(.*?)['"\s]*\)/ ) ) {
+                    return null;
+                }
+                return RegExp.$1;
+            } // end of get_img_url_from_background()
+            
+            
             to_array( img_objects ).forEach( function ( img ) {
                 if ( img.src ) {
                     var img_url = get_img_url_orig( img.src );
@@ -1994,7 +2006,7 @@ function initialize( user_options ) {
                     img_urls.push( img_url );
                 }
                 else if ( img.href ) {
-                    var img_url = img.style.backgroundImage && img.style.backgroundImage.match( /url\(['"\s]*(.*?)['"\s]*\)/ )[1];
+                    var img_url = get_img_url_from_background( img );
                     
                     if ( img_url ) {
                         img_url = get_img_url_orig( img_url );
@@ -2076,7 +2088,7 @@ function initialize( user_options ) {
                 }
                 
                 to_array( img_objects ).forEach( function ( img ) {
-                    if ( is_tweetdeck() && ! gallery_media ) {
+                    if ( is_tweetdeck() && ( ! OPTIONS.OVERRIDE_GALLERY_FOR_TWEETDECK ) && ( ! gallery_media ) ) {
                         return;
                     }
                     
@@ -2084,17 +2096,43 @@ function initialize( user_options ) {
                         fire_event( img, 'remove-image-events' );
                     }
                     
-                    function open_target_image( event ) {
-                        event.stopPropagation();
-                        event.preventDefault();
+                    var open_target_image = ( function () {
+                        var lock_event = false;
                         
-                        if ( img.src ) {
-                            button.setAttribute( 'data-target-img-url', get_img_url_orig( img.src ) );
-                            button.click();
-                        }
+                        function open_target_image( event ) {
+                            if ( lock_event ) {
+                                lock_event = false;
+                                return;
+                            }
+                            event.stopPropagation();
+                            event.preventDefault();
+                            
+                            if ( event.altKey ) {
+                                // [Alt] / [option] キー押下時には、デフォルト動作を実施
+                                lock_event = true;
+                                img.click();
+                                
+                                return;
+                            }
+                            
+                            if ( img.src ) {
+                                button.setAttribute( 'data-target-img-url', get_img_url_orig( img.src ) );
+                                button.click();
+                            }
+                            else if ( img.href ) {
+                                var img_url = get_img_url_from_background( img );
+                                
+                                if ( img_url ) {
+                                    button.setAttribute( 'data-target-img-url', get_img_url_orig( img_url ) );
+                                    button.click();
+                                }
+                            }
+                            
+                            return false;
+                        } // end of open_target_image()
                         
-                        return false;
-                    } // end of open_target_image()
+                        return open_target_image;
+                    } )(); // end of open_target_image()
                     
                     
                     function remove_image_events( event ) {

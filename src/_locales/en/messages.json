@@ -47,6 +47,9 @@
 ,   "OVERRIDE_CLICK_EVENT" : {
         "message" : "Display image on click thumbnail of tweet"
     }
+,   "OVERRIDE_GALLERY_FOR_TWEETDECK" : {
+        "message" : "TweetDeck: Replace image gallery feature"
+    }
 ,   "BUTTON_TEXT_HEADER" : {
         "message" : "Button Text"
     }

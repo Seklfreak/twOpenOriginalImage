@@ -47,6 +47,9 @@
 ,   "OVERRIDE_CLICK_EVENT" : {
         "message" : "ツイート上のサムネイル画像クリックで開く"
     }
+,   "OVERRIDE_GALLERY_FOR_TWEETDECK" : {
+        "message" : "TweetDeck: ギャラリー機能（画像ポップアップ）を置換"
+    }
 ,   "BUTTON_TEXT_HEADER" : {
         "message" : "画像を開くボタンの文字列"
     }
