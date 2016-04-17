@@ -8,7 +8,7 @@
     ,   "description" : "The short version of the extension's name."
     }
 ,   "ext_description" : {
-        "message" : "Twitterの画像を原寸で開く"
+        "message" : "Web版Twitter・TweetDeckで、原寸画像の表示と保存が簡単にできるようになります。"
     ,   "description" : "The description of the extension."
     }
 ,   "OPTIONS" : {
@@ -47,8 +47,8 @@
 ,   "OVERRIDE_CLICK_EVENT" : {
         "message" : "ツイート上のサムネイル画像クリックで開く"
     }
-,   "OVERRIDE_GALLERY_FOR_TWEETDECK" : {
-        "message" : "TweetDeck: ギャラリー機能（画像ポップアップ）を置換"
+,   "DISPLAY_ORIGINAL_BUTTONS" : {
+        "message" : "画像を開くボタンの表示"
     }
 ,   "BUTTON_TEXT_HEADER" : {
         "message" : "画像を開くボタンの文字列"
@@ -61,6 +61,9 @@
     }
 ,   "ENABLED_ON_TWEETDECK" : {
         "message" : "TweetDeck での動作"
+    }
+,   "OVERRIDE_GALLERY_FOR_TWEETDECK" : {
+        "message" : "TweetDeck: ギャラリー機能（画像ポップアップ）を置換"
     }
 ,   "DOWNLOAD_ORIGINAL_IMAGE" : {
         "message" : "原寸画像を保存"

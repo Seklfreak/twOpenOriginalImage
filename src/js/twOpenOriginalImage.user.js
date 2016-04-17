@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.6.3
+// @version         0.1.6.4
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -45,7 +45,8 @@ THE SOFTWARE.
 
 'use strict';
 
-var SCRIPT_NAME = 'twOpenOriginalImage';
+var SCRIPT_NAME = 'twOpenOriginalImage',
+    SCRIPT_NAME_JA = '原寸びゅー';
 
 if ( w[ SCRIPT_NAME + '_touched' ] ) {
     return;
@@ -61,6 +62,7 @@ var OPTIONS = {
 ,   DISPLAY_ALL_IN_ONE_PAGE : true // true: [Click] 全ての画像を同一ページで開く / [Alt]+[Click] 画像を個別に開く、false: 左記の逆の動作
 ,   DISPLAY_OVERLAY : true // true: 全ての画像を同一ページで開く際に(別タブで開かず)タイムライン上にオーバーレイする
 ,   OVERRIDE_CLICK_EVENT : true // true: ツイート中の画像クリックで原寸画像を開く
+,   DISPLAY_ORIGINAL_BUTTONS : true // true: [原寸画像]ボタンを表示
 ,   OVERRIDE_GALLERY_FOR_TWEETDECK : true // true: TweetDeck のギャラリー(画像サムネイルクリック時のポップアップ)を置換(OVERRIDE_CLICK_EVENT true 時のみ有効)
 ,   DOWNLOAD_HELPER_SCRIPT_IS_VALID : true // true: ダウンロードヘルパー機能有効
 
@@ -98,13 +100,13 @@ switch ( LANGUAGE ) {
         OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = '全ての画像を同一ページで開く';
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = '画像を個別に開く';
         OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = '↓ ダウンロード';
-        OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = '原寸画像を開く 【原寸びゅー】';
+        OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = '原寸画像を開く 【' + SCRIPT_NAME_JA + '】';
         OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_NEXT = '[j]次の画像';
         OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_PREVIOUS = '[k]前の画像';
         OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD = '[d]ダウンロード';
         OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH = '[w]幅:';
         OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH_FULL = '原寸';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH_FIT = '調整';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH_FIT = '調節';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR = '[b]背景:';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_BLACK = '黒';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_WHITE = '白';
@@ -501,7 +503,7 @@ var DragScroll = {
         self.mouse_y = mouse_position.y;
         
         w.getSelection().removeAllRanges();
-    } // end of drag_start()
+    } // end of _drag_start()
 
 
 ,   _drag_stop : function ( event ) {
@@ -511,7 +513,7 @@ var DragScroll = {
         self.is_dragging = false;
         
         w.getSelection().removeAllRanges();
-    } // end of drag_stop()
+    } // end of _drag_stop()
 
 
 ,   _drag_move : function ( event ) {
@@ -538,9 +540,7 @@ var DragScroll = {
         self.mouse_y = mouse_position.y;
         
         w.getSelection().removeAllRanges();
-    } // end of drag_move()
-
-
+    } // end of _drag_move()
 };
 
 
@@ -750,8 +750,8 @@ function initialize( user_options ) {
             ,   fullscreen_container : null
             ,   element : null
             ,   start_mouse_position : { x : 0, y : 0 }
-                
-                
+            
+            
             ,   init : function ( fullscreen_container, element ) {
                     var self = this;
                     
@@ -1503,7 +1503,7 @@ function initialize( user_options ) {
                 mouse_y = event.clientY,
                 max_x = image_overlay_container.clientWidth,
                 max_y = image_overlay_container.clientHeight;
-
+            
             if ( ( mouse_x < 0 || max_x <= mouse_x ) || ( mouse_y < 0 || max_y <= mouse_y ) ) {
                 return true;
             }
@@ -2021,6 +2021,10 @@ function initialize( user_options ) {
             
             var button_container = button_container_template.cloneNode( true ),
                 button = button_container.querySelector( 'input[type="button"]' );
+            
+            if ( ! OPTIONS.DISPLAY_ORIGINAL_BUTTONS ) {
+                button_container.style.display = 'none';
+            }
             
             add_event( button, 'click', function ( event ) {
                 event.stopPropagation();

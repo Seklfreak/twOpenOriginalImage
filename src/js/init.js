@@ -80,6 +80,7 @@ var twOpenOriginalImage_chrome_init = ( function() {
         ,   DISPLAY_ALL_IN_ONE_PAGE : get_bool
         ,   DISPLAY_OVERLAY : get_bool
         ,   OVERRIDE_CLICK_EVENT : get_bool
+        ,   DISPLAY_ORIGINAL_BUTTONS : get_bool
         ,   OVERRIDE_GALLERY_FOR_TWEETDECK : get_bool
         ,   DOWNLOAD_HELPER_SCRIPT_IS_VALID : get_bool
         ,   OPERATION : get_bool
