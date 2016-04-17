@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.6.5
+// @version         0.1.6.6
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -747,16 +747,16 @@ function initialize( user_options ) {
             
             MouseClick = {
                 move_count : 0
-            ,   fullscreen_container : null
+            ,   fullscreen_container_width_scrollbar : null
             ,   element : null
             ,   start_mouse_position : { x : 0, y : 0 }
             
             
-            ,   init : function ( fullscreen_container, element ) {
+            ,   init : function ( element, fullscreen_container_width_scrollbar ) {
                     var self = this;
                     
-                    self.fullscreen_container = fullscreen_container;
-                    self.element = ( element ) ? element : fullscreen_container;
+                    self.element = element;
+                    self.fullscreen_container_width_scrollbar = fullscreen_container_width_scrollbar;
                     
                     return self;
                 } // end of init()
@@ -772,6 +772,7 @@ function initialize( user_options ) {
                     self._add_event( element, 'mousedown', self._mousedown, true );
                     self._add_event( element, 'mousemove', self._mousemove, true );
                     self._add_event( element, 'mouseup', self._mouseup, true );
+                    self._add_event( element, 'MouseClick', self._do_click_function, true );
                     
                     return self;
                 } // end of start()
@@ -781,6 +782,7 @@ function initialize( user_options ) {
                     var self = this,
                         element = self.element;
                     
+                    self._remove_event( element, 'MouseClick' );
                     self._remove_event( element, 'mouseup' );
                     self._remove_event( element, 'mousemove' );
                     self._remove_event( element, 'mousedown' );
@@ -806,11 +808,16 @@ function initialize( user_options ) {
             
             ,   _mouse_is_on_scrollbar : function ( event ) {
                     var self = this,
-                        fullscreen_container = self.fullscreen_container,
-                        mouse_x = event.clientX,
+                        fullscreen_container_width_scrollbar = self.fullscreen_container_width_scrollbar;
+                    
+                    if ( ! fullscreen_container_width_scrollbar ) {
+                        return false;
+                    }
+                    
+                    var mouse_x = event.clientX,
                         mouse_y = event.clientY,
-                        max_x = fullscreen_container.clientWidth,
-                        max_y = fullscreen_container.clientHeight;
+                        max_x = fullscreen_container_width_scrollbar.clientWidth,
+                        max_y = fullscreen_container_width_scrollbar.clientHeight;
                     
                     if ( ( mouse_x < 0 || max_x <= mouse_x ) || ( mouse_y < 0 || max_y <= mouse_y ) ) {
                         return true;
@@ -819,6 +826,14 @@ function initialize( user_options ) {
                     return false;
                 } // end of _mouse_is_on_scrollbar()
             
+            
+            ,   _do_click_function : function ( event ) {
+                    var self = this;
+                    
+                    if ( typeof self.click_function == 'function' ) {
+                        self.click_function.apply( self, arguments );
+                    }
+                }
             
             ,   _click : function ( event ) {
                     var self = this;
@@ -846,11 +861,6 @@ function initialize( user_options ) {
                     var self = this,
                         start_mouse_position = self.start_mouse_position;
                     
-                    if ( event.target.classList.contains( 'download-link' ) ) {
-                        // TODO: ダウンロードボタンが影響を受けてしまうので、暫定対策
-                        return false;
-                    }
-                    
                     if ( event.button != 0 ) {
                         // メインボタン以外
                         return false;
@@ -866,9 +876,7 @@ function initialize( user_options ) {
                         return false;
                     }
                     
-                    if ( typeof self.click_function == 'function' ) {
-                        self.click_function.apply( self, arguments );
-                    }
+                    self._do_click_function.apply( self, arguments );
                 } // end of _mouseup()
             },
             
@@ -1237,11 +1245,17 @@ function initialize( user_options ) {
                                 image_link.setAttribute( 'draggable', false );
                                 add_event( image_link, 'dragstart', disable_event );
                                 
-                                mouse_click.init( image_overlay_container, image_link ).start( set_focus );
+                                mouse_click.init( image_link, image_overlay_container ).start( set_focus );
                                 add_event( image_link_container, 'mouseover', set_focus_mouseover );
                                 add_event( image_link_container, 'mousemove', set_focus_mouseover );
                                 add_event( image_link_container, 'remove-mouse-click-event', function ( event ) {
                                     mouse_click.stop();
+                                    
+                                    var download_link = image_link_container.querySelector( '.download-link' );
+                                    
+                                    if ( download_link ) {
+                                        fire_event( download_link, 'remove-mouse-click-event-download' );
+                                    }
                                 } );
                             } );
                             
@@ -1291,7 +1305,7 @@ function initialize( user_options ) {
                             var download_link = image_overlay_container.querySelector( '.image-link-container.current .download-link' );
                             
                             if ( download_link ) {
-                                download_link.click();
+                                fire_event( download_link, 'MouseClick' );
                             }
                         } // end of image_overlay_container_download_current_image()
                         
@@ -1538,17 +1552,18 @@ function initialize( user_options ) {
                 
                 if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID && ( ! is_ie() ) ) {
                     var download_link = create_download_link( img_url, target_document ),
-                        download_link_container = import_node( download_link_container_template, target_document );
+                        download_link_container = import_node( download_link_container_template, target_document ),
+                        mouse_click = object_extender( MouseClick ).init( download_link );
                     
                     download_link.href = img_url;
                     
                     if ( is_bookmarklet() ) {
-                        add_event( download_link, 'click', function ( event ) {
+                        mouse_click.start( function ( event ) {
                             event.stopPropagation();
                         } );
                     }
                     else {
-                        add_event( download_link, 'click', function ( event ) {
+                        mouse_click.start( function ( event ) {
                             event.stopPropagation();
                             event.preventDefault();
                             
@@ -1565,6 +1580,11 @@ function initialize( user_options ) {
                             return false;
                         } );
                     }
+                    
+                    add_event( download_link, 'remove-mouse-click-event-download', function ( event ) {
+                        mouse_click.stop();
+                    } );
+                    
                     download_link_container.appendChild( download_link );
                     img_link_container.appendChild( download_link_container );
                 }
@@ -1647,7 +1667,7 @@ function initialize( user_options ) {
                     add_event( event_item.element,  event_item.name, event_item.func, true );
                 } );
                 
-                image_overlay_container_mouse_click.init( image_overlay_container ).start( close_image_overlay_container );
+                image_overlay_container_mouse_click.init( image_overlay_container, image_overlay_container ).start( close_image_overlay_container );
             } // end of set_events()
             
             
