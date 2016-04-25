@@ -2,7 +2,7 @@
     "manifest_version" : 2
 ,   "name" : "__MSG_ext_title__"
 ,   "short_name" : "__MSG_ext_short_name__"
-,   "version" : "0.1.6.600"
+,   "version" : "0.1.7.100"
 ,   "description" : "__MSG_ext_description__"
 ,   "default_locale" : "ja"
 ,   "icons" : {
@@ -14,8 +14,9 @@
 ,   "content_scripts" : [
         {
             "matches" : [ "*://twitter.com/*", "*://pbs.twimg.com/media/*", "*://tweetdeck.twitter.com/*" ]
-        ,   "js" : [ "js/init.js" ]
+        ,   "js" : [ "js/init.js", "js/jszip.min.js", "js/FileSaver.min.js" ]
         ,   "run_at" : "document_start"
+        ,   "all_frames" : true
         }
     ,   {
             "matches" : [ "*://twitter.com/*", "*://pbs.twimg.com/media/*", "*://tweetdeck.twitter.com/*" ]

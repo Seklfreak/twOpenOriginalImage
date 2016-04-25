@@ -44,17 +44,23 @@ Firefox＋[Greasemonkey](https://addons.mozilla.org/ja/firefox/addon/greasemonke
 また、タイムラインの画像を右クリックしてコンテキストメニューを開き、[原寸画像を保存]を選べば、当該画像がダウンロードされる（このときも拡張子は自動的に変換される）。  
 
 
-■ オリジナル ( hogas ([@hogextend](https://twitter.com/hogextend/) ) 氏作成 )
+■ 参考元 ( hogas ([@hogextend](https://twitter.com/hogextend/) ) 氏作成 )
 ---
 - [hogashi/twitterOpenOriginalImage](https://github.com/hogashi/twitterOpenOriginalImage)  
 - [GoogleChrome拡張機能「twitter画像原寸ボタン」ver. 2.0公開 - hogashi.*](http://hogashi.hatenablog.com/entry/2016/01/01/234632)  
 
 
-■ オリジナルとの主な違いなど
+■ 参考元との主な違いなど
 ---
 - アイデアを拝借、元のソースコードを参照しつつ、基本的にはいちから作成（なのでオリジナルでは発生しない不具合等もあるはず）。  
 - デフォルト設定では、[原寸画像]ボタンクリック時に、画像を個別のタブではなく、一つのタブ（元のタイムラインと同一のタブ）上に、まとめて開く（DISPLAY_ALL_IN_ONE_PAGE = true 時・[Alt]＋クリックで個別のタブで開く）。  
-- ユーザースクリプト版には、オプション設定機能はなし。必要な場合、インストール後に手動でソース上のパラメータ（SHOW_IN_DETAIL_PAGE, SHOW_IN_TIMELINE, ENABLED_ON_TWEETDECK, DISPLAY_ALL_IN_ONE_PAGE, DISPLAY_OVERLAY, OVERRIDE_CLICK_EVENT, DOWNLOAD_HELPER_SCRIPT_IS_VALID）を変更すること（true ⇔ false）。  
+- ユーザースクリプト版には、オプション設定機能はなし。必要な場合、インストール後に手動でソース上のパラメータ（OPTIONS）を変更すること（true ⇔ false）。  
+
+
+■ 外部ライブラリなど
+---
+- [JSZip](https://stuk.github.io/jszip/)  
+- [eligrey/FileSaver.js: An HTML5 saveAs() FileSaver implementation](https://github.com/eligrey/FileSaver.js/)  
 
 
 ■ 関連記事

@@ -2,21 +2,40 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.6.6
+// @version         0.1.7.1
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
 // @include         https://tweetdeck.twitter.com/*
+// @require         https://cdnjs.cloudflare.com/ajax/libs/jszip/3.0.0/jszip.min.js
+// @require         https://cdn.rawgit.com/eligrey/FileSaver.js/683f689326c231002164621dc8a6451df4e86e8a/FileSaver.min.js
+// @grant           GM_xmlhttpRequest
 // @description     Open images in original size on Twitter.
 // ==/UserScript==
-/*
-[furyutei/twOpenOriginalImage](https://github.com/furyutei/twOpenOriginalImage)
-[Twitter 原寸びゅー：Twitterの原寸画像を開くGoogle Chrome拡張機能＆ユーザースクリプト公開 - 風柳メモ](http://furyu.hatenablog.com/entry/20160116/1452871567)
 
-※オリジナル： hogas (@hogextend) 氏作成
+/*
+■ 関連記事など
+  [Twitter 原寸びゅー：Twitterの原寸画像を開くGoogle Chrome拡張機能＆ユーザースクリプト公開 - 風柳メモ](http://furyu.hatenablog.com/entry/20160116/1452871567)
+  [furyutei/twOpenOriginalImage](https://github.com/furyutei/twOpenOriginalImage)
+
+■ 参考元
+- [GoogleChrome拡張機能「twitter画像原寸ボタン」ver. 2.0公開 - hogashi.*](http://hogashi.hatenablog.com/entry/2016/01/01/234632)
   [hogashi/twitterOpenOriginalImage](https://github.com/hogashi/twitterOpenOriginalImage)
-  [GoogleChrome拡張機能「twitter画像原寸ボタン」ver. 2.0公開 - hogashi.*](http://hogashi.hatenablog.com/entry/2016/01/01/234632)
+    The MIT License (MIT)
+    Copyright (c) hogas [@hogextend](https://twitter.com/hogextend)
+    [twitterOpenOriginalImage/LICENSE](https://github.com/hogashi/twitterOpenOriginalImage/blob/master/LICENSE)
+
+■ 外部ライブラリ
+- [JSZip](https://stuk.github.io/jszip/)
+    The MIT License
+    Copyright (c) 2009-2014 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso
+    [jszip/LICENSE.markdown](https://github.com/Stuk/jszip/blob/master/LICENSE.markdown)
+
+- [eligrey/FileSaver.js: An HTML5 saveAs() FileSaver implementation](https://github.com/eligrey/FileSaver.js/)
+    Copyright © 2015 Eli Grey.
+    [FileSaver.js/LICENSE.md](https://github.com/eligrey/FileSaver.js/blob/master/LICENSE.md)
 */
+
 /*
 The MIT License (MIT)
 
@@ -65,6 +84,7 @@ var OPTIONS = {
 ,   DISPLAY_ORIGINAL_BUTTONS : true // true: [原寸画像]ボタンを表示
 ,   OVERRIDE_GALLERY_FOR_TWEETDECK : true // true: TweetDeck のギャラリー(画像サムネイルクリック時のポップアップ)を置換(OVERRIDE_CLICK_EVENT true 時のみ有効)
 ,   DOWNLOAD_HELPER_SCRIPT_IS_VALID : true // true: ダウンロードヘルパー機能有効
+,   DOWNLOAD_ZIP_IS_VALID : true // true: ZIPダウンロード有効
 
 ,   OPERATION : true // true: 動作中、false: 停止中
 
@@ -103,7 +123,8 @@ switch ( LANGUAGE ) {
         OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = '原寸画像を開く 【' + SCRIPT_NAME_JA + '】';
         OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_NEXT = '[j]次の画像';
         OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_PREVIOUS = '[k]前の画像';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD = '[d]ダウンロード';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD = '[d]保存';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD_ZIP = '[z]ZIP';
         OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH = '[w]幅:';
         OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH_FULL = '原寸';
         OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH_FIT = '調節';
@@ -123,6 +144,7 @@ switch ( LANGUAGE ) {
         OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_NEXT = '[j]next';
         OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_PREVIOUS = '[k]previous';
         OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD = '[d]download';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD_ZIP = '[z]ZIP';
         OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH = '[w]width:';
         OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH_FULL = 'full';
         OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH_FIT = 'fit';
@@ -188,9 +210,13 @@ var is_mac = ( function () {
 } )(); // end of is_mac()
 
 
-function is_bookmarklet() {
-    return ( !! ( w[ SCRIPT_NAME + '_bookmarklet' ] ) );
-} // end of is_bookmarklet()
+var is_bookmarklet = ( function () {
+    var flag =  ( !! ( w[ SCRIPT_NAME + '_bookmarklet' ] ) );
+    
+    return function () {
+        return flag;
+    };
+} )(); // end of is_bookmarklet()
 
 
 var is_tweetdeck = ( function () {
@@ -239,6 +265,11 @@ function get_img_url( img_url, kind ) {
 function get_img_url_orig( img_url ) {
     return get_img_url( img_url, 'orig' );
 } // end of get_img_url_orig()
+
+
+function get_img_filename( img_url ) {
+    return img_url.replace( /^.+\/([^\/.]+)\.(\w+):(\w+)$/, '$1-$3.$2' );
+} // end of get_img_filename()
 
 
 function has_some_classes( node, class_list ) {
@@ -583,7 +614,7 @@ var create_download_link = ( function () {
         link.appendChild( doc.createTextNode( OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT ) );
         
         if ( img_url ) {
-            var filename = img_url.replace( /^.+\/([^\/.]+)\.(\w+):(\w+)$/, '$1-$3.$2' );
+            var filename = get_img_filename( img_url );
             
             link.href = img_url;
             link.download = filename;
@@ -593,6 +624,163 @@ var create_download_link = ( function () {
     
     return create_download_link;
 } )(); // end of create_download_link()
+
+
+function download_zip( tweet_info_json ) {
+    try {
+        var tweet_info = JSON.parse( tweet_info_json ),
+            tweet_url = tweet_info.url,
+            tweet_url = /^http/.test( tweet_url ) ? tweet_url : 'https://twitter.com' + tweet_url,
+            title = ( tweet_info.title ) ? tweet_info.title : '',
+            fullname = tweet_info.fullname,
+            username = tweet_info.username,
+            timestamp_ms = tweet_info.timestamp_ms,
+            img_urls = tweet_info.img_urls;
+        
+        if ( ( ! tweet_url ) || ( ! img_urls ) || ( img_urls.length <= 0 ) ) {
+            return false;
+        }
+    }
+    catch ( error ) {
+        return false;
+    }
+    
+    var zip = new JSZip(),
+        filename_prefix = tweet_url.replace( /^https?:\/\/twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '$1-$2' ),
+        img_info_dict = {};
+    
+    if ( filename_prefix == tweet_url ) {
+        return false;
+    }
+    
+    zip.file( filename_prefix + '.url', '[InternetShortcut]\nURL=' + tweet_url + '\n' );
+    
+    if ( fullname && username ) {
+        zip.file( filename_prefix + '.txt', [
+            fullname + ' (' + username + ') ' + ( ( timestamp_ms ) ? new Date( parseInt( timestamp_ms, 10 ) ).toLocaleString() : '' )
+        ,   tweet_url
+        ,   title
+        ,   img_urls.join( '\n' )
+        ].join( '\n\n' ) + '\n' );
+    }
+    
+    
+    function save_blob( filename, blob ) {
+        function _save() {
+            var blobURL = URL.createObjectURL( blob ),
+                download_button = document.createElement( 'a' );
+            
+            download_button.href = blobURL;
+            download_button.download = filename;
+            
+            document.documentElement.appendChild( download_button );
+            
+            download_button.click();
+            
+            download_button.parentNode.removeChild( download_button );
+        } // end of _save()
+        
+        if ( typeof saveAs == 'function' ) {
+            try {
+                saveAs( blob, filename );
+            }
+            catch ( error ) {
+                //console.error( error );
+                _save();
+            }
+        }
+        else {
+            _save();
+        }
+    } // end of save_blob()
+    
+    
+    function add_img_info( img_url, arrayBuffer ) {
+        var img_info = {
+                filename : get_img_filename( img_url )
+            ,   arrayBuffer : ( arrayBuffer ) ? arrayBuffer : ''
+            };
+        
+        img_info_dict[ img_url ] = img_info;
+        
+        if ( Object.keys( img_info_dict ).length < img_urls.length ) {
+            return;
+        }
+        
+        img_urls.forEach( function ( img_url, index ) {
+            var img_info = img_info_dict[ img_url ],
+                img_extension = get_img_extension( img_info.filename ),
+                //img_filename = img_info.filename;
+                img_filename = filename_prefix + '-img' + ( index + 1 ) + '.' + img_extension;
+            
+            if ( ! img_extension ) {
+                return;
+            }
+            zip.file( img_filename, img_info.arrayBuffer );
+        } );
+        
+        var zip_content_type = 'blob';
+            // ※ JSZip 自体は 'base64' 等もサポートしている [generateAsync(options[, onUpdate])](https://stuk.github.io/jszip/documentation/api_jszip/generate_async.html)
+            // ※ 'base64' の場合、'data:application/zip;base64,' + zip_content でデータ URL を作成できるが、これでダウンロードすると、 Chrome ではセキュリティの警告が出て削除されてしまう
+        
+        zip.generateAsync( { type : zip_content_type } ).then( function ( zip_content ) {
+            var zip_filename = filename_prefix + '.zip';
+            
+            save_blob( zip_filename, zip_content );
+            
+            if ( w.opener && ( w === top ) ) {
+                setTimeout( function () {
+                    w.close();
+                }, 1000 );
+            }
+        } );
+    } // end of add_img_info()
+    
+    
+    img_urls.forEach( function ( img_url ) {
+        if ( ( ! /^https?:\/\/pbs\.twimg\.com\/media\//.test( img_url ) ) || ( img_url == get_img_filename( img_url ) ) ) {
+            return;
+        }
+        
+        if ( is_firefox() && ( typeof GM_xmlhttpRequest == 'function' ) ) {
+            GM_xmlhttpRequest( {
+                method : 'GET'
+            ,   url : img_url
+            ,   responseType : 'arraybuffer'
+            ,   onload : function ( response ) {
+                    add_img_info( img_url, response.response );
+                }
+            ,   onerror : function ( response ) {
+                    console.error( response.status, response.statusText );
+                    add_img_info( img_url );
+                }
+            } );
+        }
+        else {
+            var xhr = new XMLHttpRequest();
+            
+            xhr.open( 'GET', img_url, true );
+            xhr.responseType = 'arraybuffer';
+            xhr.onload = function () {
+                if ( xhr.readyState != 4 ) {
+                    return;
+                }
+                if ( xhr.status != 200 ) {
+                    console.error( xhr.status, xhr.statusText );
+                    return;
+                }
+                add_img_info( img_url, xhr.response );
+            };
+            xhr.onerror = function () {
+                console.error( xhr.status, xhr.statusText );
+                add_img_info( img_url );
+            };
+            xhr.send();
+        }
+    } );
+    
+    return true;
+} // end of download_zip()
 
 
 function initialize_download_helper() {
@@ -605,14 +793,34 @@ function initialize_download_helper() {
     }
     
     var img_url = w.location.href,
+        is_child = /^https?:\/\/(?:tweetdeck\.)?twitter\.com\//.test( d.referrer ),
         link = ( is_ie() ) ? null : create_download_link( img_url );
     
-    if ( link && ( w.name == SCRIPT_NAME + '_download_frame' ) ) {
-        // 本スクリプトによりダウンロード用 IFRAME 経由で開いた場合
-        d.documentElement.appendChild( link );
-        link.click(); // ダウンロード開始
+    if ( link && is_child ) {
+        // TODO: 第三者のサイト上であっても、window.name にフォーマットにあった値を設定されてしまうと、指定通りに保存されてしまう
+        // 暫定的に、referrer 確認＆
         
-        return true;
+        if ( w.name == SCRIPT_NAME + '_download_frame' ) {
+            // 本スクリプトによりダウンロード用 IFRAME 経由で開いた場合
+            d.documentElement.appendChild( link );
+            
+            link.click(); // ダウンロード開始
+            
+            link.parentNode.removeChild( link );
+            
+            return true;
+        }
+        
+        try {
+            var tweet_info_json = decodeURIComponent( w.name );
+            
+            if ( /^https?:\/\/(?:tweetdeck\.)?twitter\.com\//.test( d.referrer ) && download_zip( tweet_info_json ) ) {
+                return true;
+            }
+        }
+        catch ( error ) {
+            //console.log( error );
+        }
     }
     
     if ( d.querySelector( 'form.search-404' ) ) {
@@ -710,6 +918,14 @@ function initialize( user_options ) {
     
     if ( is_tweetdeck() && ( ! OPTIONS.ENABLED_ON_TWEETDECK ) ) {
         return;
+    }
+    
+    if ( is_ie() || is_bookmarklet() ) {
+        OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID = false;
+    }
+    
+    if ( typeof JSZip != 'function' ) {
+        OPTIONS.DOWNLOAD_ZIP_IS_VALID = false;
     }
     
     if ( initialize_download_helper() !== false ) {
@@ -1309,6 +1525,49 @@ function initialize( user_options ) {
                             }
                         } // end of image_overlay_container_download_current_image()
                         
+                        
+                        function image_overlay_container_download_image_zip() {
+                            var tweet_url = image_overlay_close_link.href,
+                                img_urls = to_array( image_overlay_container.querySelectorAll( '.image-link-container .download-link' ) ).map( function ( download_link ) {
+                                    return download_link.href;
+                                } ),
+                                tweet_info_json = JSON.stringify( {
+                                    url : tweet_url
+                                ,   img_urls : img_urls
+                                ,   title : image_overlay_close_link.title
+                                ,   fullname : image_overlay_close_link.getAttribute( 'data-fullname' )
+                                ,   username : image_overlay_close_link.getAttribute( 'data-username' )
+                                ,   timestamp_ms : image_overlay_close_link.getAttribute( 'data-timestamp-ms' )
+                                } );
+                            
+                            if ( is_firefox() ) {
+                                // TODO: Firefox の場合、IFRAME 経由で呼び出すと、ダウンロード用の a#href に blob:～ を入れた時点で CSP に引っかかってしまう
+                                // →対策として、cross-domain 対応の GM_xmlhttpRequest を使用し、IFRAME 経由ではなく直接呼び出し
+                                
+                                if ( typeof GM_xmlhttpRequest == 'function' ) {
+                                    download_zip( tweet_info_json );
+                                }
+                                else {
+                                    w.open( img_urls[ 0 ], encodeURIComponent( tweet_info_json ) );
+                                }
+                                return false;
+                            }
+                            
+                            var old_iframe = d.querySelector( 'iframe#' + SCRIPT_NAME + '_download_zip_frame' ),
+                                iframe = import_node( download_frame_template );
+                            
+                            
+                            if ( old_iframe ) {
+                                old_iframe.parentNode.removeChild( old_iframe );
+                                old_iframe = null;
+                            }
+                            iframe.id = SCRIPT_NAME + '_download_zip_frame';
+                            iframe.name = encodeURIComponent( tweet_info_json );
+                            iframe.src = img_urls[ 0 ];
+                            d.documentElement.appendChild( iframe );
+                        } // end of image_overlay_container_download_image_zip()
+                        
+                        
                         add_event( image_overlay_container, 'scroll-to-top', function () {
                             clear_timerid_list();
                             image_overlay_container_scroll_to( {
@@ -1387,6 +1646,11 @@ function initialize( user_options ) {
                         add_event( image_overlay_container, 'download-image', function () {
                             clear_timerid_list();
                             image_overlay_container_download_current_image();
+                        } );
+                        
+                        add_event( image_overlay_container, 'download-image-zip', function () {
+                            clear_timerid_list();
+                            image_overlay_container_download_image_zip();
                         } );
                         
                         d.body.appendChild( image_overlay_container );
@@ -1550,7 +1814,7 @@ function initialize( user_options ) {
                     link = import_node( link_template, target_document ),
                     img_link_container = import_node( img_link_container_template, target_document );
                 
-                if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID && ( ! is_ie() ) ) {
+                if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID ) {
                     var download_link = create_download_link( img_url, target_document ),
                         download_link_container = import_node( download_link_container_template, target_document ),
                         mouse_click = object_extender( MouseClick ).init( download_link );
@@ -1636,7 +1900,7 @@ function initialize( user_options ) {
         } // end of update_overlay_status()
         
         
-        function show_overlay( img_urls, tweet_url, title, start_img_url ) {
+        function show_overlay( img_urls, tweet_url, title, start_img_url, tweet ) {
             if ( image_overlay_container.style.display != 'none' ) {
                 //console.error( 'show_overlay(): duplicate called' );
                 // TODO: 重複して呼ばれるケース(不正な動作)に対するガード
@@ -1645,6 +1909,12 @@ function initialize( user_options ) {
             
             var html_element = d.querySelector( 'html' ),
                 body = d.body,
+                fullname_container = tweet.querySelector( '.fullname' ),
+                fullname = ( fullname_container ) ? fullname_container.textContent : '',
+                username_container = tweet.querySelector( '.username' ),
+                username = ( username_container ) ? username_container.textContent : '',
+                timestamp_container = tweet.querySelector( '*[data-time-ms], time[data-time]' ),
+                timestamp_ms = ( timestamp_container ) ? ( timestamp_container.getAttribute( 'data-time-ms' ) || timestamp_container.getAttribute( 'data-time' ) ) : '',
                 
                 image_overlay_container_style = image_overlay_container.style,
                 image_overlay_loading_style = image_overlay_loading.style,
@@ -1717,6 +1987,11 @@ function initialize( user_options ) {
             clear_node( image_overlay_image_container );
             
             image_overlay_close_link.href = tweet_url;
+            image_overlay_close_link.title = title;
+            image_overlay_close_link.setAttribute( 'data-fullname', fullname );
+            image_overlay_close_link.setAttribute( 'data-username', username );
+            image_overlay_close_link.setAttribute( 'data-timestamp-ms', timestamp_ms );
+            
             add_images_to_page( img_urls, image_overlay_image_container, {
                 start_img_url : start_img_url
             ,   callback : function () {
@@ -1763,7 +2038,7 @@ function initialize( user_options ) {
                 image_overlay_shortcut_help.appendChild( help_move_previous );
             }
             
-            if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID && ( ! is_ie() ) ) {
+            if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID ) {
                 var help_download = import_node( help_item_template );
                 
                 help_download.classList.add( 'help-download' );
@@ -1781,6 +2056,23 @@ function initialize( user_options ) {
                 image_overlay_shortcut_help.appendChild( help_download );
             }
             
+            if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID && OPTIONS.DOWNLOAD_ZIP_IS_VALID ) {
+                var help_download_zip = import_node( help_item_template );
+                
+                help_download_zip.classList.add( 'help-download-zip' );
+                help_download_zip.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD_ZIP ) );
+                
+                add_event( help_download_zip, 'click', function ( event ) {
+                    event.stopPropagation();
+                    event.preventDefault();
+                    
+                    fire_event( image_overlay_container, 'download-image-zip' );
+                    
+                    return false;
+                } );
+                
+                image_overlay_shortcut_help.appendChild( help_download_zip );
+            }
             
             var toggle_image_width = ( function () {
                 var image_width = OPTIONS.DEFAULT_IMAGE_WIDTH,
@@ -2060,16 +2352,15 @@ function initialize( user_options ) {
                 button.removeAttribute( 'data-target-img-url' );
                 
                 if ( OPTIONS.DISPLAY_ALL_IN_ONE_PAGE ^ event.altKey ) {
-                    var tweet_link = tweet.querySelector( 'a[rel="url"]' ),
+                    var tweet_link = tweet.querySelector( 'a[rel="url"][href^="https://twitter.com/"],a[rel="url"][href^="/"]' ),
                         tweet_url = tweet.getAttribute( 'data-permalink-path' ) || ( tweet_link && tweet_link.href ),
-                        tweet_text = tweet.querySelector( '.tweet-text' ),
-                        title = ( tweet_text ) ? tweet_text.textContent : '';
+                        tweet_text = tweet.querySelector( '.tweet-text,.js-tweet-text' ),
+                        title = ( tweet_text ) ? ( ( tweet_text.innerText !== undefined ) ? tweet_text.innerText : tweet_text.textContent ) : '';
                     
                     if ( OPTIONS.DISPLAY_OVERLAY ) {
-                        show_overlay( target_img_urls, tweet_url, title, focused_img_url );
+                        show_overlay( target_img_urls, tweet_url, title, focused_img_url, tweet );
                     }
                     else {
-                        
                         open_page( ( focused_img_url ) ? [ focused_img_url ] : target_img_urls, tweet_url, title );
                     }
                 }
@@ -2405,6 +2696,9 @@ function initialize( user_options ) {
                 break;
             case 68 : // [d]
                 fire_event( image_overlay_container, 'download-image' );
+                break;
+            case 90 : // [z]
+                fire_event( image_overlay_container, 'download-image-zip' );
                 break;
             case 87 : // [w]
                 fire_event( image_overlay_container, 'toggle-image-width' );
