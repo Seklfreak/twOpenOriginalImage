@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.1
+// @version         0.1.7.2
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -228,50 +228,6 @@ var is_tweetdeck = ( function () {
 } )(); // end of is_tweetdeck()
 
 
-function get_img_extension( img_url, extension_list ) {
-    var extension = '',
-        extension_list = ( extension_list ) ? extension_list : [ 'png', 'jpg', 'gif' ];
-    
-    if ( img_url.match( new RegExp( '\.(' + extension_list.join('|') + ')' ) ) ) {
-        extension = RegExp.$1;
-    }
-    return extension;
-} // end of get_img_extension()
-
-
-function get_img_kind( img_url ) {
-    var kind = 'medium';
-    
-    if ( img_url.match( /:(\w*)$/ ) ) {
-        kind = RegExp.$1;
-    }
-    return kind;
-} // end of get_img_kind()
-
-
-function get_img_url( img_url, kind ) {
-    if ( ! kind ) {
-        kind = '';
-    }
-    else {
-        if ( kind.search( ':' ) != 0 ) {
-            kind = ':' + kind;
-        }
-    }
-    return img_url.replace( /:\w*$/, '' ) + kind;
-} // end of get_img_url()
-
-
-function get_img_url_orig( img_url ) {
-    return get_img_url( img_url, 'orig' );
-} // end of get_img_url_orig()
-
-
-function get_img_filename( img_url ) {
-    return img_url.replace( /^.+\/([^\/.]+)\.(\w+):(\w+)$/, '$1-$3.$2' );
-} // end of get_img_filename()
-
-
 function has_some_classes( node, class_list ) {
     if ( ! Array.isArray( class_list ) ) {
         class_list = [ class_list ];
@@ -466,6 +422,79 @@ var add_event = event_functions.add_event,
     remove_event = event_functions.remove_event;
 
 
+function get_img_extension( img_url, extension_list ) {
+    var extension = '',
+        extension_list = ( extension_list ) ? extension_list : [ 'png', 'jpg', 'gif' ];
+    
+    if ( img_url.match( new RegExp( '\.(' + extension_list.join('|') + ')' ) ) ) {
+        extension = RegExp.$1;
+    }
+    return extension;
+} // end of get_img_extension()
+
+
+function get_img_kind( img_url ) {
+    var kind = 'medium';
+    
+    if ( img_url.match( /:(\w*)$/ ) ) {
+        kind = RegExp.$1;
+    }
+    return kind;
+} // end of get_img_kind()
+
+
+function get_img_url( img_url, kind ) {
+    if ( ! kind ) {
+        kind = '';
+    }
+    else {
+        if ( kind.search( ':' ) != 0 ) {
+            kind = ':' + kind;
+        }
+    }
+    return img_url.replace( /:\w*$/, '' ) + kind;
+} // end of get_img_url()
+
+
+function get_img_url_orig( img_url ) {
+    return get_img_url( img_url, 'orig' );
+} // end of get_img_url_orig()
+
+
+function get_img_filename( img_url ) {
+    return img_url.replace( /^.+\/([^\/.]+)\.(\w+):(\w+)$/, '$1-$3.$2' );
+} // end of get_img_filename()
+
+
+function get_timestamp_ms_from_tweet_id( tweet_id ) {
+    if ( isNaN( tweet_id ) ) {
+        return null;
+    }
+    tweet_id = parseInt( tweet_id, 10 );
+    
+    if ( tweet_id <= 30000000000 ) {
+        return null;
+    }
+    return ( 1288834974657 + ( tweet_id / ( 1 << 22 ) ) );
+} // end of get_timestamp_ms_from_tweet_id()
+
+
+function get_timestamp_ms_from_tweet_url( tweet_url ) {
+    if ( tweet_url.match( /^(?:https?:\/\/twitter\.com)?\/[^\/]+\/status(?:es)?\/(\d+).*$/ ) ) {
+        return get_timestamp_ms_from_tweet_id( RegExp.$1 );
+    }
+    return null;
+} // end of get_timestamp_ms_from_tweet_url()
+
+
+function get_datetime_string_from_timestamp_ms( timestamp_ms ) {
+    if ( ( ! timestamp_ms ) || isNaN( timestamp_ms ) ) {
+        return '';
+    }
+    return ( new Date( parseInt( timestamp_ms, 10 ) ).toLocaleString() );
+} // end of get_datetime_string_from_timestamp_ms()
+
+
 var DragScroll = {
     is_dragging : false
 ,   element : null
@@ -632,8 +661,8 @@ function download_zip( tweet_info_json ) {
             tweet_url = tweet_info.url,
             tweet_url = /^http/.test( tweet_url ) ? tweet_url : 'https://twitter.com' + tweet_url,
             title = ( tweet_info.title ) ? tweet_info.title : '',
-            fullname = tweet_info.fullname,
-            username = tweet_info.username,
+            fullname = tweet_info.fullname.trim(),
+            username = tweet_info.username.trim(),
             timestamp_ms = tweet_info.timestamp_ms,
             img_urls = tweet_info.img_urls;
         
@@ -647,6 +676,8 @@ function download_zip( tweet_info_json ) {
     
     var zip = new JSZip(),
         filename_prefix = tweet_url.replace( /^https?:\/\/twitter\.com\/([^\/]+)\/status(?:es)?\/(\d+).*$/, '$1-$2' ),
+        timestamp_ms = ( timestamp_ms ) ? timestamp_ms : get_timestamp_ms_from_tweet_url( tweet_url ),
+        datetime_string = get_datetime_string_from_timestamp_ms( timestamp_ms ),
         img_info_dict = {};
     
     if ( filename_prefix == tweet_url ) {
@@ -657,7 +688,7 @@ function download_zip( tweet_info_json ) {
     
     if ( fullname && username ) {
         zip.file( filename_prefix + '.txt', [
-            fullname + ' (' + username + ') ' + ( ( timestamp_ms ) ? new Date( parseInt( timestamp_ms, 10 ) ).toLocaleString() : '' )
+            fullname + ' (' + username + ') ' + datetime_string
         ,   tweet_url
         ,   title
         ,   img_urls.join( '\n' )
@@ -1528,9 +1559,10 @@ function initialize( user_options ) {
                         
                         function image_overlay_container_download_image_zip() {
                             var tweet_url = image_overlay_close_link.href,
-                                img_urls = to_array( image_overlay_container.querySelectorAll( '.image-link-container .download-link' ) ).map( function ( download_link ) {
-                                    return download_link.href;
-                                } ),
+                                //img_urls = to_array( image_overlay_container.querySelectorAll( '.image-link-container .download-link' ) ).map( function ( download_link ) {
+                                //    return download_link.href;
+                                //} ),
+                                img_urls = JSON.parse( image_overlay_close_link.getAttribute( 'data-all-img-urls' ) ),
                                 tweet_info_json = JSON.stringify( {
                                     url : tweet_url
                                 ,   img_urls : img_urls
@@ -1900,7 +1932,7 @@ function initialize( user_options ) {
         } // end of update_overlay_status()
         
         
-        function show_overlay( img_urls, tweet_url, title, start_img_url, tweet ) {
+        function show_overlay( img_urls, tweet_url, title, start_img_url, tweet, all_img_urls ) {
             if ( image_overlay_container.style.display != 'none' ) {
                 //console.error( 'show_overlay(): duplicate called' );
                 // TODO: 重複して呼ばれるケース(不正な動作)に対するガード
@@ -1910,9 +1942,9 @@ function initialize( user_options ) {
             var html_element = d.querySelector( 'html' ),
                 body = d.body,
                 fullname_container = tweet.querySelector( '.fullname' ),
-                fullname = ( fullname_container ) ? fullname_container.textContent : '',
+                fullname = ( fullname_container ) ? fullname_container.textContent.trim() : '',
                 username_container = tweet.querySelector( '.username' ),
-                username = ( username_container ) ? username_container.textContent : '',
+                username = ( username_container ) ? username_container.textContent.trim() : '',
                 timestamp_container = tweet.querySelector( '*[data-time-ms], time[data-time]' ),
                 timestamp_ms = ( timestamp_container ) ? ( timestamp_container.getAttribute( 'data-time-ms' ) || timestamp_container.getAttribute( 'data-time' ) ) : '',
                 
@@ -1991,6 +2023,8 @@ function initialize( user_options ) {
             image_overlay_close_link.setAttribute( 'data-fullname', fullname );
             image_overlay_close_link.setAttribute( 'data-username', username );
             image_overlay_close_link.setAttribute( 'data-timestamp-ms', timestamp_ms );
+            image_overlay_close_link.setAttribute( 'data-img-urls', JSON.stringify( img_urls ) );
+            image_overlay_close_link.setAttribute( 'data-all-img-urls', JSON.stringify( all_img_urls ) );
             
             add_images_to_page( img_urls, image_overlay_image_container, {
                 start_img_url : start_img_url
@@ -2278,32 +2312,37 @@ function initialize( user_options ) {
                 tweet_container = ( tweet_container ) ? tweet_container : tweet,
                 old_button = tweet_container.querySelector( '.' + button_container_classname );
             
-            if ( old_button ) {
-                old_button.classList.add( 'removed' );
-                old_button.parentNode.removeChild( old_button );
+            function remove_old_button( old_button ) {
+                if ( ! old_button ) {
+                    return;
+                }
+                fire_event( old_button, 'remove-all-image-events' );
+                if ( ! old_button.classList.contains( 'removed' ) ) {
+                    old_button.classList.add( 'removed' );
+                }
+                if ( old_button.parentNode ) {
+                    old_button.parentNode.removeChild( old_button );
+                }
                 old_button = null;
-            }
+            } // end of remove_old_button()
             
-            var gallery = search_ancestor( tweet, [ 'Gallery', 'js-modal-panel' ] );
+            
+            remove_old_button( old_button );
+            
+            var gallery = ( is_tweetdeck() && tweet_container.classList.contains( 'js-stream-item' ) ) ? null : search_ancestor( tweet, [ 'Gallery', 'js-modal-panel' ] );
             
             if ( gallery ) {
                 old_button = gallery.querySelector( '.' + button_container_classname );
-                if ( old_button ) {
-                    old_button.parentNode.removeChild( old_button );
-                    old_button = null;
-                }
+                remove_old_button( old_button );
+                old_button = null;
             }
             
-            var gallery_media = ( gallery ) ? gallery.querySelector( '.Gallery-media, .js-embeditem' ) : null,
-                img_objects = ( gallery_media ) ? gallery_media.querySelectorAll( 'img.media-image, img.media-img' ) : null,
-                img_objects = ( img_objects && ( 0 < img_objects.length ) ) ? img_objects : tweet_container.querySelectorAll( '.AdaptiveMedia-photoContainer img, a.js-media-image-link img.media-img, div.js-media > div:not(.is-video) a.js-media-image-link[rel="mediaPreview"]' ),
-                action_list = ( gallery_media ) ? gallery_media.querySelector( '.js-media-preview-container' ) : null,
-                action_list = ( action_list ) ? action_list : tweet_container.querySelector( '.ProfileTweet-actionList, footer' ),
-                img_urls = [];
             
-            if ( ( img_objects.length <= 0 ) || ( ! action_list ) ) {
-                return null;
-            }
+            function get_img_objects( container ) {
+                return to_array( container.querySelectorAll( '.AdaptiveMedia-photoContainer img, a.js-media-image-link img.media-img, div.js-media > div:not(.is-video) a.js-media-image-link[rel="mediaPreview"]' ) ).filter( function ( img_object ) {
+                    return ( ! search_ancestor( img_object, [ 'js-quote-detail', 'quoted-tweet' ] ) ); // 引用ツイート中の画像は対象としない
+                } );
+            } // end of get_img_objects()
             
             
             function get_img_url_from_background( element ) {
@@ -2316,21 +2355,59 @@ function initialize( user_options ) {
             } // end of get_img_url_from_background()
             
             
-            to_array( img_objects ).forEach( function ( img ) {
-                if ( img.src ) {
-                    var img_url = get_img_url_orig( img.src );
-                    
-                    img_urls.push( img_url );
-                }
-                else if ( img.href ) {
-                    var img_url = get_img_url_from_background( img );
-                    
-                    if ( img_url ) {
-                        img_url = get_img_url_orig( img_url );
+            function get_img_urls( img_objects ) {
+                var img_urls = [];
+                
+                to_array( img_objects ).forEach( function ( img ) {
+                    if ( img.src ) {
+                        var img_url = get_img_url_orig( img.src );
+                        
                         img_urls.push( img_url );
                     }
-                }
-            } );
+                    else if ( img.href ) {
+                        var img_url = get_img_url_from_background( img );
+                        
+                        if ( img_url ) {
+                            img_url = get_img_url_orig( img_url );
+                            img_urls.push( img_url );
+                        }
+                    }
+                } );
+                
+                return img_urls;
+            } // end of get_img_urls()
+            
+            
+            var source_container = ( function () {
+                    if ( ( ! is_tweetdeck() ) || ( ! gallery ) ) {
+                        return tweet_container;
+                    }
+                    
+                    var data_key_item = gallery.querySelector( '.js-tweet-box[data-key]' );
+                    
+                    if ( ! data_key_item ) {
+                        return tweet_container;
+                    }
+                    
+                    var source_container = d.body.querySelector( 'article.js-stream-item[data-key="' + data_key_item.getAttribute( 'data-key' ) + '"]' );
+                    
+                    return ( source_container ) ? source_container : tweet_container;
+                } )(),
+                all_img_objects = get_img_objects( source_container ),
+                gallery_media = ( gallery ) ? gallery.querySelector( '.Gallery-media, .js-embeditem' ) : null,
+                img_objects = ( gallery_media ) ? gallery_media.querySelectorAll( 'img.media-image, img.media-img' ) : null,
+                img_objects = ( img_objects && ( 0 < img_objects.length ) ) ? img_objects : all_img_objects,
+                action_list = ( gallery_media ) ? gallery_media.querySelector( '.js-media-preview-container' ) : null,
+                action_list = ( action_list ) ? action_list : tweet_container.querySelector( '.ProfileTweet-actionList, footer' ),
+                img_urls = [],
+                all_img_urls = [];
+            
+            if ( ( img_objects.length <= 0 ) || ( ! action_list ) ) {
+                return null;
+            }
+            
+            img_urls = get_img_urls( img_objects );
+            all_img_urls = get_img_urls( all_img_objects );
             
             if ( img_urls.length <= 0 ) {
                 return null;
@@ -2347,7 +2424,8 @@ function initialize( user_options ) {
                 event.stopPropagation();
                 
                 var focused_img_url = button.getAttribute( 'data-target-img-url' ),
-                    target_img_urls = img_urls.slice( 0 );
+                    target_img_urls = img_urls.slice( 0 ),
+                    target_all_img_urls = all_img_urls.slice( 0 );
                 
                 button.removeAttribute( 'data-target-img-url' );
                 
@@ -2358,7 +2436,7 @@ function initialize( user_options ) {
                         title = ( tweet_text ) ? ( ( tweet_text.innerText !== undefined ) ? tweet_text.innerText : tweet_text.textContent ) : '';
                     
                     if ( OPTIONS.DISPLAY_OVERLAY ) {
-                        show_overlay( target_img_urls, tweet_url, title, focused_img_url, tweet );
+                        show_overlay( target_img_urls, tweet_url, title, focused_img_url, tweet, target_all_img_urls );
                     }
                     else {
                         open_page( ( focused_img_url ) ? [ focused_img_url ] : target_img_urls, tweet_url, title );
@@ -2382,6 +2460,8 @@ function initialize( user_options ) {
                     // TODO: タイミングによっては、ボタンが二重に表示されてしまう不具合対策
                     return;
                 }
+                button_container.classList.remove( 'removed' );
+                
                 if ( is_tweetdeck() ) {
                     if ( action_list.tagName == 'FOOTER' && search_ancestor( img_objects[ 0 ], [ 'js-tweet', 'tweet' ] ) ) {
                         action_list.insertBefore( button_container, action_list.firstChild );
@@ -2395,10 +2475,7 @@ function initialize( user_options ) {
                 }
             } // end of insert_button()
             
-            
             add_event( button_container, 'reinsert', insert_button );
-            
-            insert_button();
             
             if ( OPTIONS.OVERRIDE_CLICK_EVENT ) {
                 if ( gallery_media && ( ! is_tweetdeck() ) ) {
@@ -2471,7 +2548,20 @@ function initialize( user_options ) {
                     
                     img.classList.add( SCRIPT_NAME + '_touched' );
                 } );
+                
+                
             }
+            
+            function remove_all_image_events( event ) {
+                to_array( img_objects ).forEach( function ( img ) {
+                    fire_event( img, 'remove-image-events' );
+                } )
+            } // end of remove_all_image_events()
+            
+            add_event( button_container, 'remove-all-image-events', remove_all_image_events );
+            
+            insert_button();
+            
             return button_container;
         } // end of add_open_button()
         
@@ -2564,23 +2654,46 @@ function initialize( user_options ) {
             }
             
             records.forEach( function ( record ) {
+                var target = record.target;
+                                
                 if ( is_tweetdeck() ) {
                     to_array( record.removedNodes ).forEach( function ( removedNode ) {
-                        if ( ( removedNode.nodeType != 1 ) || ( ! removedNode.classList.contains( SCRIPT_NAME + 'Button' ) ) || ( removedNode.classList.contains( 'removed' ) ) ) {
+                        if ( removedNode.nodeType != 1 ) {
                             return;
                         }
-                        // TweetDeck でユーザーをポップアップ→USERS・MENTIONS等のタイムラインを表示したとき、一度挿入したボタンが削除されることがある→再挿入
-                        fire_event( removedNode, 'reinsert' );
+                        if ( ! removedNode.classList.contains( 'removed' ) ) {
+                            // TweetDeck でユーザーをポップアップ→USERS・MENTIONS等のタイムラインを表示したとき、一度挿入したボタンが削除されることがある→再挿入
+                            fire_event( removedNode, 'reinsert' );
+                        }
+                        
+                        if ( removedNode.classList.contains( 'js-media' ) ) {
+                            // TweetDeck でメディア(サムネイル)だけが削除→挿入される場合がある
+                        }
                     } );
-                    // ※ addedNodes の前に removedNodes を先に処理しないと、ボタンの存在チェック等で誤動作することがある
                 }
+                // ※ addedNodes よりも removedNodes を先に処理しないと、ボタンの存在チェック等で誤動作することがある
                 
                 to_array( record.addedNodes ).forEach( function ( addedNode ) {
+                    if ( addedNode.nodeType != 1 ) {
+                        return;
+                    }
                     if ( check_tweets( addedNode ) ) {
                         return;
                     }
                     if ( check_help_dialog( addedNode ) ) {
                         return;
+                    }
+                    
+                    if ( is_tweetdeck() ) {
+                        if ( addedNode.classList.contains( 'js-media' ) ) {
+                            // TweetDeck でメディア(サムネイル)だけが削除→挿入される場合がある
+                            var ancestor = search_ancestor( addedNode, [ 'js-stream-tweet', 'tweet', 'js-tweet' ] );
+                            
+                            if ( ancestor ) {
+                                check_tweets( ancestor );
+                            }
+                            return;
+                        }
                     }
                 } );
             } );
