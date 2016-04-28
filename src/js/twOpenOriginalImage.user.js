@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.2
+// @version         0.1.7.3
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -829,7 +829,7 @@ function initialize_download_helper() {
     
     if ( link && is_child ) {
         // TODO: 第三者のサイト上であっても、window.name にフォーマットにあった値を設定されてしまうと、指定通りに保存されてしまう
-        // 暫定的に、referrer 確認＆
+        // →暫定的に、referrer 確認で対処
         
         if ( w.name == SCRIPT_NAME + '_download_frame' ) {
             // 本スクリプトによりダウンロード用 IFRAME 経由で開いた場合
@@ -1562,7 +1562,7 @@ function initialize( user_options ) {
                                 //img_urls = to_array( image_overlay_container.querySelectorAll( '.image-link-container .download-link' ) ).map( function ( download_link ) {
                                 //    return download_link.href;
                                 //} ),
-                                img_urls = JSON.parse( image_overlay_close_link.getAttribute( 'data-all-img-urls' ) ),
+                                img_urls = JSON.parse( decodeURIComponent( image_overlay_close_link.getAttribute( 'data-all-img-urls' ) ) ),
                                 tweet_info_json = JSON.stringify( {
                                     url : tweet_url
                                 ,   img_urls : img_urls
@@ -2023,8 +2023,8 @@ function initialize( user_options ) {
             image_overlay_close_link.setAttribute( 'data-fullname', fullname );
             image_overlay_close_link.setAttribute( 'data-username', username );
             image_overlay_close_link.setAttribute( 'data-timestamp-ms', timestamp_ms );
-            image_overlay_close_link.setAttribute( 'data-img-urls', JSON.stringify( img_urls ) );
-            image_overlay_close_link.setAttribute( 'data-all-img-urls', JSON.stringify( all_img_urls ) );
+            image_overlay_close_link.setAttribute( 'data-img-urls', encodeURIComponent( JSON.stringify( img_urls ) ) );
+            image_overlay_close_link.setAttribute( 'data-all-img-urls', encodeURIComponent( JSON.stringify( all_img_urls ) ) );
             
             add_images_to_page( img_urls, image_overlay_image_container, {
                 start_img_url : start_img_url
@@ -2390,6 +2390,7 @@ function initialize( user_options ) {
                     }
                     
                     var source_container = d.body.querySelector( 'article.js-stream-item[data-key="' + data_key_item.getAttribute( 'data-key' ) + '"]' );
+                        // TODO: TweetDeck の引用ツイートから直接ギャラリーを開いた場合は、source_container が取れない
                     
                     return ( source_container ) ? source_container : tweet_container;
                 } )(),
@@ -2411,6 +2412,11 @@ function initialize( user_options ) {
             
             if ( img_urls.length <= 0 ) {
                 return null;
+            }
+            
+            if ( all_img_urls.length < img_urls.length ) {
+                // TODO: TweetDeck の引用ツイートから直接ギャラリーを開いたケースだと、TL上に元ツイートが無く、all_img_urls.length = 0 となってしまう
+                all_img_urls = img_urls.slice( 0 );
             }
             
             var button_container = button_container_template.cloneNode( true ),
