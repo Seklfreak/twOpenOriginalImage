@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.4
+// @version         0.1.7.5
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -457,6 +457,10 @@ function get_img_url( img_url, kind ) {
 
 
 function get_img_url_orig( img_url ) {
+    if ( /^https?:\/\/ton\.twitter\.com\//.test( img_url ) ) {
+        // DM の画像は :orig が付かないものが最大
+        return get_img_url( img_url );
+    }
     return get_img_url( img_url, 'orig' );
 } // end of get_img_url_orig()
 
@@ -2072,7 +2076,7 @@ function initialize( user_options ) {
                 image_overlay_shortcut_help.appendChild( help_move_previous );
             }
             
-            if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID ) {
+            if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID && tweet_url ) {
                 var help_download = import_node( help_item_template );
                 
                 help_download.classList.add( 'help-download' );
@@ -2090,7 +2094,7 @@ function initialize( user_options ) {
                 image_overlay_shortcut_help.appendChild( help_download );
             }
             
-            if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID && OPTIONS.DOWNLOAD_ZIP_IS_VALID ) {
+            if ( OPTIONS.DOWNLOAD_HELPER_SCRIPT_IS_VALID && OPTIONS.DOWNLOAD_ZIP_IS_VALID && tweet_url ) {
                 var help_download_zip = import_node( help_item_template );
                 
                 help_download_zip.classList.add( 'help-download-zip' );
@@ -2362,12 +2366,14 @@ function initialize( user_options ) {
                     if ( img.src ) {
                         var img_url = get_img_url_orig( img.src );
                         
-                        img_urls.push( img_url );
+                        if ( ! /tweetdeck/.test( img_url ) ) {
+                            img_urls.push( img_url );
+                        }
                     }
                     else if ( img.href ) {
-                        var img_url = get_img_url_from_background( img );
+                        var img_url = img.getAttribute( 'data-original-url' ) || get_img_url_from_background( img ) || img.href;
                         
-                        if ( img_url ) {
+                        if ( img_url && /\.(?:jpg|png|gif)/.test( img_url ) ) {
                             img_url = get_img_url_orig( img_url );
                             img_urls.push( img_url );
                         }
@@ -2396,7 +2402,7 @@ function initialize( user_options ) {
                 } )(),
                 all_img_objects = get_img_objects( source_container ),
                 gallery_media = ( gallery ) ? gallery.querySelector( '.Gallery-media, .js-embeditem' ) : null,
-                img_objects = ( gallery_media ) ? gallery_media.querySelectorAll( 'img.media-image, img.media-img' ) : null,
+                img_objects = ( gallery_media ) ? gallery_media.querySelectorAll( 'img.media-image, img.media-img, a.med-origlink[href^="https://ton.twitter.com"]' ) : null,
                 img_objects = ( img_objects && ( 0 < img_objects.length ) ) ? img_objects : all_img_objects,
                 action_list = ( gallery_media ) ? gallery_media.querySelector( '.js-media-preview-container' ) : null,
                 action_list = ( action_list ) ? action_list : tweet_container.querySelector( '.ProfileTweet-actionList, footer' ),
@@ -2514,7 +2520,6 @@ function initialize( user_options ) {
                                 // [Alt] / [option] キー押下時には、デフォルト動作を実施
                                 lock_event = true;
                                 img.click();
-                                
                                 return;
                             }
                             
@@ -2523,9 +2528,9 @@ function initialize( user_options ) {
                                 button.click();
                             }
                             else if ( img.href ) {
-                                var img_url = get_img_url_from_background( img );
+                                var img_url = img.getAttribute( 'data-original-url' ) || get_img_url_from_background( img ) || img.href;
                                 
-                                if ( img_url ) {
+                                if ( img_url && /\.(?:jpg|png|gif)/.test( img_url ) ) {
                                     button.setAttribute( 'data-target-img-url', get_img_url_orig( img_url ) );
                                     button.click();
                                 }
@@ -2545,8 +2550,10 @@ function initialize( user_options ) {
                     } // end of remove_image_events()
                     
                     
-                    add_event( img, 'click', open_target_image );
-                    add_event( img, 'remove-image-events', remove_image_events );
+                    if ( ! has_some_classes( img, 'med-origlink' ) ) {
+                        add_event( img, 'click', open_target_image );
+                        add_event( img, 'remove-image-events', remove_image_events );
+                    }
                     
                     if ( img.classList.contains( 'media-image' ) ) {
                         img.style.pointerEvents = 'auto';
