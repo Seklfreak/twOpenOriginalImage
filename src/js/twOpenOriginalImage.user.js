@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.5
+// @version         0.1.7.6
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -96,7 +96,7 @@ var OPTIONS = {
 ,   SCROLL_STEP : 100 // オーバーレイ表示時の[↑][↓]によるスクロール単位(pixel)
 ,   SMOOTH_SCROLL_STEP : 100 // オーバーレイ表示時のスムーズスクロール単位(pixel)
 ,   SMOOTH_SCROLL_INTERVAL : 10 // オーバーレイ表示時のスムーズスクロールの間隔(ms)
-,   DEFAULT_IMAGE_WIDTH : 'fit' // オーバーレイ表示時の画像幅初期値 ('fit' または 'full')
+,   DEFAULT_IMAGE_SIZE : 'fit-width' // オーバーレイ表示時の画像幅初期値 ( 'full' / 'fit-width' / 'fit-height' )
 ,   DEFAULT_IMAGE_BACKGROUND_COLOR : 'black' // オーバーレイ表示時の画像背景色初期値 ('black' または 'white')
 };
 
@@ -125,9 +125,10 @@ switch ( LANGUAGE ) {
         OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_PREVIOUS = '[k]前の画像';
         OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD = '[d]保存';
         OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD_ZIP = '[z]ZIP';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH = '[w]幅:';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH_FULL = '原寸';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH_FIT = '調節';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE = '[s]サイズ:';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE_FULL = '原寸';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE_FIT_WIDTH = '幅調節';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE_FIT_HEIGHT = '高さ調節';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR = '[b]背景:';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_BLACK = '黒';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_WHITE = '白';
@@ -145,9 +146,10 @@ switch ( LANGUAGE ) {
         OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_PREVIOUS = '[k]previous';
         OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD = '[d]download';
         OPTIONS.HELP_OVERLAY_SHORTCUT_DOWNLOAD_ZIP = '[z]ZIP';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH = '[w]width:';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH_FULL = 'full';
-        OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH_FIT = 'fit';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE = '[s]size:';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE_FULL = 'full';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE_FIT_WIDTH = 'fit-width';
+        OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE_FIT_HEIGHT = 'fit-height';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR = '[b]bgcolor:';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_BLACK = 'black';
         OPTIONS.HELP_OVERLAY_SHORTCUT_BGCOLOR_WHITE = 'white';
@@ -894,14 +896,39 @@ function initialize_download_helper() {
     var link_container = d.createElement( 'div' ),
         link_container_style = link_container.style,
         kind_list = [ 'thumb', 'small', 'medium', 'large', 'orig' ],
-        current_kind = get_img_kind( img_url );
+        current_kind = get_img_kind( img_url ),
+        fadeout = true,
+        initial_fadeout_limit_msec = 1500,
+        default_fadeout_limit_msec = 500,
+        fadeout_unit_msec = 100,
+        timerid = null,
+        fadeout_later_timerid = null;
+        
     
-    link_container_style.margin = '2px 0 1px 0';
+    link_container_style.position = 'fixed';
+    link_container_style.zIndex = 10000;
+    link_container_style.width = '100%';
+    //link_container_style.margin = '2px 0 1px 0';
+    link_container_style.margin = '0 0 0 0';
     link_container_style.fontFamily = 'Arial, "ヒラギノ角ゴ Pro W3", "Hiragino Kaku Gothic Pro", Osaka, メイリオ, Meiryo, "ＭＳ Ｐゴシック", "MS PGothic", sans-serif';
+    link_container_style.padding = '2px 4px';
+    link_container_style.opacity = '1.0';
+    link_container_style.background = 'lightyellow';
+    link_container_style.border = 'solid 1px silver';
     
     if ( link ) {
         link.style.marginRight = '6px';
         link_container.appendChild( link );
+        
+        add_event( d.body, 'keydown', function ( event ) {
+            var key_code = event.keyCode;
+            
+            switch ( key_code ) {
+                case 68 : // [d]
+                    link.click(); // ダウンロード開始
+                    break;
+            }
+        } );
     }
     
     kind_list.forEach( function ( kind ) {
@@ -924,14 +951,104 @@ function initialize_download_helper() {
         link_container.appendChild( kind_link );
     } );
     
+    
+    function clear_fadeout_later_timer() {
+        if ( ! fadeout_later_timerid ) {
+            return;
+        }
+        
+        clearTimeout( fadeout_later_timerid );
+        fadeout_later_timerid = null;
+    } // end of clear_fadeout_later_timer()
+    
+    
+    function start_fadeout( fadeout_limit_msec ) {
+        function clear_timer() {
+            if ( ! timerid ) {
+                return;
+            }
+            
+            clearInterval( timerid );
+            timerid = null;
+        } // end of clear_timer()
+        
+        
+        if ( ! fadeout_limit_msec ) {
+            fadeout_limit_msec = default_fadeout_limit_msec;
+        }
+        
+        clear_timer();
+        fadeout = true;
+        link_container_style.opacity = '1.0';
+        
+        var current_msec = fadeout_limit_msec;
+        
+        timerid = setInterval( function () {
+            if ( ! fadeout ) {
+                clear_timer();
+                return;
+            }
+            current_msec -= fadeout_unit_msec;
+            
+            if ( current_msec <= 0 ) {
+                clear_timer();
+                link_container_style.opacity = '0.0';
+                fadeout = false;
+                return;
+            }
+            
+            if ( current_msec < default_fadeout_limit_msec ) {
+                link_container_style.opacity = current_msec / default_fadeout_limit_msec;
+            }
+        }, fadeout_unit_msec );
+        
+    } // end of start_fadeout()
+    
+    /*
+    //add_event( d.body, 'mousemove', function ( event ) {
+    //    fadeout = false;
+    //    link_container_style.opacity = '1.0';
+    //    
+    //    clear_fadeout_later_timer();
+    //    fadeout_later_timerid = setTimeout( function() {
+    //        start_fadeout();
+    //    }, 100 );
+    //} );
+    */
+    
+    add_event( link_container, 'mouseover', function ( event ) {
+        event.stopPropagation();
+        clear_fadeout_later_timer();
+        fadeout = false;
+        link_container_style.opacity = '1.0';
+    } );
+    
+    add_event( link_container, 'mousemove', function ( event ) {
+        event.stopPropagation();
+        clear_fadeout_later_timer();
+        fadeout = false;
+        link_container_style.opacity = '1.0';
+    } );
+    
+    add_event( link_container, 'mouseout', function ( event ) {
+        clear_fadeout_later_timer();
+        fadeout_later_timerid = setTimeout( function() {
+            start_fadeout();
+        }, 300 );
+    } );
+    
+    start_fadeout( initial_fadeout_limit_msec );
+    
     d.body.insertBefore( link_container, d.body.firstChild );
     
-    var img_shrink_to_fit = d.querySelector( 'img.shrinkToFit' );
-    
-    if ( img_shrink_to_fit ) {
-        // Firefox 対策（画像が position: absolute; top: 0; なので、リンクが隠れてしまう）
-        img_shrink_to_fit.style.top = '34px';
-    }
+    /*
+    //var img_shrink_to_fit = d.querySelector( 'img.shrinkToFit' );
+    //
+    //if ( img_shrink_to_fit ) {
+    //    // Firefox 対策（画像が position: absolute; top: 0; なので、リンクが隠れてしまう）
+    //    img_shrink_to_fit.style.top = '34px';
+    //}
+    */
     
     return true;
 } // end of initialize_download_helper()
@@ -1959,8 +2076,10 @@ function initialize( user_options ) {
                 html_style = html_element.style,
                 body_style = body.style,
                 
+                saved_html_overflowX = html_style.overflowX,
                 saved_html_overflowY = html_style.overflowY,
                 saved_body_position = body_style.position,
+                saved_body_overflowX = body_style.overflowX,
                 saved_body_overflowY = body_style.overflowY,
                 saved_body_marginRight = body_style.marginRight,
                 
@@ -2006,8 +2125,10 @@ function initialize( user_options ) {
                 image_overlay_loading_style.display = 'none';
                 image_overlay_container_style.display = 'none';
                 body_style.marginRight = saved_body_marginRight;
+                body_style.overflowX = saved_body_overflowX;
                 body_style.overflowY = saved_body_overflowY;
                 if ( is_tweetdeck() ) {
+                    html_style.overflowX = saved_html_overflowX;
                     html_style.overflowY = saved_html_overflowY;
                 }
                 
@@ -2112,58 +2233,144 @@ function initialize( user_options ) {
                 image_overlay_shortcut_help.appendChild( help_download_zip );
             }
             
-            var toggle_image_width = ( function () {
-                var image_width = OPTIONS.DEFAULT_IMAGE_WIDTH,
+            var toggle_image_size = ( function () {
+                var image_size_types = {
+                        'fit-width' : 'full'
+                    ,   'full' : 'fit-height'
+                    ,   'fit-height' : 'fit-width'
+                    },
+                    help_image_size_types = {
+                        'fit-width' : 'HELP_OVERLAY_SHORTCUT_SIZE_FIT_WIDTH'
+                    ,   'full' : 'HELP_OVERLAY_SHORTCUT_SIZE_FULL'
+                    ,   'fit-height' : 'HELP_OVERLAY_SHORTCUT_SIZE_FIT_HEIGHT'
+                    },
+                    image_size = OPTIONS.DEFAULT_IMAGE_SIZE,
                     help = import_node( help_item_template );
                 
-                help.classList.add( 'help-toggle-width' );
+                help.classList.add( 'help-toggle-size' );
                 
                 add_event( help, 'click', function ( event ) {
                     event.stopPropagation();
                     event.preventDefault();
                     
-                    fire_event( image_overlay_container, 'toggle-image-width' );
+                    fire_event( image_overlay_container, 'toggle-image-size' );
                     
                     return false;
                 } );
                 
                 image_overlay_shortcut_help.appendChild( help );
                 
-                function change_width( width ) {
-                    var maxWidth = ( width == 'full' ) ? 'none' : '100%',
-                        width_max = 0;
+                add_event( image_overlay_container, 'image-fit-height', function ( event ) {
+                    if ( image_size != 'fit-height' ) {
+                        return false;
+                    }
+                    
+                    var first_image = image_overlay_image_container.querySelector( 'img.original-image' );
+                    
+                    if ( ! first_image ) {
+                        return false;
+                    }
+                    
+                    var first_element_top_offset = parseInt( getComputedStyle( image_overlay_container ).paddingTop ) + get_element_position( first_image ).y - get_element_position( image_overlay_image_container ).y,
+                        maxHeight = w.innerHeight - first_element_top_offset - 20 // TODO: スクロールバーの幅分を自動で調整したい
                     
                     to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) ).forEach( function ( img ) {
-                        img.style.maxWidth = maxWidth;
-                        
+                        img.style.maxHeight = maxHeight + 'px';
+                    } );
+                    
+                    return false;
+                } );
+                
+                add_event( w, 'resize', function ( event ) {
+                    if ( image_size != 'fit-height' ) {
+                        return false;
+                    }
+                    
+                    setTimeout( function () {
+                        fire_event( image_overlay_container, 'image-fit-height' );
+                    }, 100 );
+                    
+                    return false;
+                } );
+                
+                
+                function get_next_size( image_size ) {
+                    if ( image_size_types[ image_size ] ) {
+                        return image_size_types[ image_size ];
+                    }
+                    return OPTIONS.DEFAULT_IMAGE_SIZE;
+                } // end of next_size()
+                
+                
+                function change_size( next_size ) {
+                    var width_max = 0;
+                    
+                    to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) ).forEach( function ( img ) {
                         if ( width_max < img.naturalWidth ) {
                             width_max = img.naturalWidth;
+                        }
+                        
+                        switch ( next_size ) {
+                            case 'fit-width' :
+                                img.style.width = 'auto';
+                                img.style.height = 'auto';
+                                img.style.maxWidth = '100%';
+                                img.style.maxHeight = 'none';
+                                break;
+                            case 'full' :
+                                img.style.width = 'auto';
+                                img.style.height = 'auto';
+                                img.style.maxWidth = 'none';
+                                img.style.maxHeight = 'none';
+                                break;
+                            case 'fit-height' :
+                                img.style.width = 'auto';
+                                img.style.height = 'auto';
+                                img.style.maxWidth = 'none';
+                                img.style.maxHeight = 'none';
+                                break;
                         }
                     } );
                     
                     to_array( image_overlay_image_container.querySelectorAll( '.image-link-container' ) ).forEach( function ( image_link_container ) {
-                        if ( width == 'full' ) {
-                            image_link_container.style.width = width_max + 'px';
-                        }
-                        else {
-                            image_link_container.style.width = 'auto';
+                        switch ( next_size ) {
+                            case 'fit-width' :
+                                image_link_container.style.width = 'auto';
+                                image_link_container.style.height = 'auto';
+                                break;
+                            case 'full' :
+                                image_link_container.style.width = width_max + 'px';
+                                image_link_container.style.height = 'auto';
+                                break;
+                            case 'fit-height' :
+                                image_link_container.style.width = 'auto';
+                                image_link_container.style.height = 'auto';
+                                break;
                         }
                     } );
                     
                     clear_node( help );
-                    help.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_WIDTH + OPTIONS[ ( width == 'full' ) ? 'HELP_OVERLAY_SHORTCUT_WIDTH_FULL' : 'HELP_OVERLAY_SHORTCUT_WIDTH_FIT' ] ) );
+                    help.appendChild( d.createTextNode( OPTIONS.HELP_OVERLAY_SHORTCUT_SIZE + OPTIONS[ help_image_size_types[ next_size ] ] ) );
                     
-                    image_width = width;
-                } // end of change_help()
+                    image_size = next_size;
+                    
+                    if ( image_size == 'fit-height' ) {
+                        setTimeout( function () {
+                            fire_event( image_overlay_container, 'image-fit-height' );
+                        }, 100 );
+                    }
+                    
+                } // end of change_size()
                 
-                change_width( image_width );
+                change_size( image_size );
                 
-                function toggle_image_width( event ) {
-                    change_width( ( image_width == 'fit' ) ? 'full' : 'fit' );
-                } // end of toggle_image_width()
                 
-                return toggle_image_width;
-            } )(); // end of toggle_image_width()
+                function toggle_image_size( event ) {
+                    change_size( get_next_size( image_size ) );
+                } // end of toggle_image_size()
+                
+                return toggle_image_size;
+            } )(); // end of toggle_image_size()
             
             
             var toggle_image_background_color = ( function () {
@@ -2206,13 +2413,15 @@ function initialize( user_options ) {
             
             event_list.push( { element : image_overlay_close_link, name : 'click', func : close_image_overlay_container } );
             event_list.push( { element : image_overlay_header, name : 'click', func : close_image_overlay_container } );
-            event_list.push( { element : image_overlay_container, name : 'toggle-image-width', func : toggle_image_width } );
+            event_list.push( { element : image_overlay_container, name : 'toggle-image-size', func : toggle_image_size } );
             event_list.push( { element : image_overlay_container, name : 'toggle-image-background-color', func : toggle_image_background_color } );
             add_events();
             
             if ( is_tweetdeck() ) {
+                html_style.overflowX = 'hidden';
                 html_style.overflowY = 'hidden';
             }
+            body_style.overflowX = 'hidden';
             body_style.overflowY = 'hidden';
             body_style.marginRight = 0;
             image_overlay_header_style.display = 'block';
@@ -2826,8 +3035,9 @@ function initialize( user_options ) {
             case 90 : // [z]
                 fire_event( image_overlay_container, 'download-image-zip' );
                 break;
-            case 87 : // [w]
-                fire_event( image_overlay_container, 'toggle-image-width' );
+            case 83 : // [s]
+            case 87 : // [w] (互換性のため残す)
+                fire_event( image_overlay_container, 'toggle-image-size' );
                 break;
             case 66 : // [b]
                 fire_event( image_overlay_container, 'toggle-image-background-color' );
