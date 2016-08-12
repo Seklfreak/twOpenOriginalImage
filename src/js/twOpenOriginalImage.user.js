@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.6
+// @version         0.1.7.7
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -625,6 +625,7 @@ var create_download_link = ( function () {
     link_style.padding = '4px 8px';
     link_style.border = 'solid 2px';
     link_style.borderRadius = '3px';
+    link_style.minWidth = '90px';
     
     function create_download_link( img_url, doc ) {
         if ( ! doc ) {
@@ -1627,6 +1628,8 @@ function initialize( user_options ) {
                                 } );
                             } );
                             
+                            fire_event( image_overlay_container, 'toggle-image-size' );
+                            
                             image_overlay_image_container.style.visibility = 'visible';
                             
                             set_image_container_to_current( start_container, {
@@ -1721,6 +1724,10 @@ function initialize( user_options ) {
                         } // end of image_overlay_container_download_image_zip()
                         
                         
+                        add_event( image_overlay_container, 'lock-mouseover', function() {
+                            lock_mouseover();
+                        } );
+                        
                         add_event( image_overlay_container, 'scroll-to-top', function () {
                             clear_timerid_list();
                             image_overlay_container_scroll_to( {
@@ -1748,6 +1755,25 @@ function initialize( user_options ) {
                             image_overlay_container_smooth_scroll( {
                                 scroll_height : image_overlay_container.scrollHeight - image_overlay_container.scrollTop
                             ,   step : OPTIONS.SMOOTH_SCROLL_STEP
+                            } );
+                        } );
+                        
+                        add_event( image_overlay_container, 'scroll-to-horizontal-middle', function () {
+                            clear_timerid_list();
+                            
+                            if ( w.innerWidth < image_overlay_container.scrollWidth ) {
+                                image_overlay_container_horizontal_scroll_to( {
+                                    offset : ( image_overlay_container.scrollWidth - w.innerWidth ) / 2
+                                } );
+                            }
+                        } );
+                        
+                        add_event( image_overlay_container, 'scroll-to-current-image-container', function () {
+                            clear_timerid_list();
+                            
+                            set_image_container_to_current( image_overlay_container.querySelector( '.image-link-container.current' ), {
+                                scroll_to : true
+                            ,   smooth_scroll : true
                             } );
                         } );
                         
@@ -2244,8 +2270,13 @@ function initialize( user_options ) {
                     ,   'full' : 'HELP_OVERLAY_SHORTCUT_SIZE_FULL'
                     ,   'fit-height' : 'HELP_OVERLAY_SHORTCUT_SIZE_FIT_HEIGHT'
                     },
-                    image_size = OPTIONS.DEFAULT_IMAGE_SIZE,
-                    help = import_node( help_item_template );
+                    image_size = ( localStorage[ SCRIPT_NAME + '_saved_image_size' ] ) ? localStorage[ SCRIPT_NAME + '_saved_image_size' ] : OPTIONS.DEFAULT_IMAGE_SIZE,
+                    help = import_node( help_item_template ),
+                    first_event = true;
+                
+                if ( ! image_size_types[ image_size ] ) {
+                    image_size = OPTIONS.DEFAULT_IMAGE_SIZE;
+                }
                 
                 help.classList.add( 'help-toggle-size' );
                 
@@ -2354,19 +2385,29 @@ function initialize( user_options ) {
                     
                     image_size = next_size;
                     
-                    if ( image_size == 'fit-height' ) {
-                        setTimeout( function () {
+                    fire_event( image_overlay_container, 'lock-mouseover' ); // current 要素を変更しないようにロックしておく
+                    
+                    setTimeout( function () {
+                        if ( image_size == 'fit-height' ) {
                             fire_event( image_overlay_container, 'image-fit-height' );
-                        }, 100 );
-                    }
+                        }
+                        fire_event( image_overlay_container, 'scroll-to-horizontal-middle' );
+                        fire_event( image_overlay_container, 'scroll-to-current-image-container' );
+                    }, 100 );
+                    
+                    localStorage[ SCRIPT_NAME + '_saved_image_size' ] = image_size;
                     
                 } // end of change_size()
                 
-                change_size( image_size );
-                
                 
                 function toggle_image_size( event ) {
-                    change_size( get_next_size( image_size ) );
+                    if ( first_event ) {
+                        first_event = false;
+                        change_size( image_size );
+                    }
+                    else {
+                        change_size( get_next_size( image_size ) );
+                    }
                 } // end of toggle_image_size()
                 
                 return toggle_image_size;
