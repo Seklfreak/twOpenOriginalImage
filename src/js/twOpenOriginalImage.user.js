@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.7
+// @version         0.1.7.8
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -2291,6 +2291,7 @@ function initialize( user_options ) {
                 
                 image_overlay_shortcut_help.appendChild( help );
                 
+                remove_event( image_overlay_container, 'image-fit-height' );
                 add_event( image_overlay_container, 'image-fit-height', function ( event ) {
                     if ( image_size != 'fit-height' ) {
                         return false;
@@ -2310,8 +2311,9 @@ function initialize( user_options ) {
                     } );
                     
                     return false;
-                } );
+                }, true );
                 
+                remove_event( w, 'resize' );
                 add_event( w, 'resize', function ( event ) {
                     if ( image_size != 'fit-height' ) {
                         return false;
@@ -2322,7 +2324,7 @@ function initialize( user_options ) {
                     }, 100 );
                     
                     return false;
-                } );
+                }, true );
                 
                 
                 function get_next_size( image_size ) {
@@ -2334,9 +2336,13 @@ function initialize( user_options ) {
                 
                 
                 function change_size( next_size ) {
-                    var width_max = 0;
+                    var width_max = 0,
+                        all_image_loaded = true;
                     
                     to_array( image_overlay_image_container.querySelectorAll( 'img.original-image' ) ).forEach( function ( img ) {
+                        if ( ! img.naturalWidth ) {
+                            all_image_loaded = false;
+                        }
                         if ( width_max < img.naturalWidth ) {
                             width_max = img.naturalWidth;
                         }
@@ -2394,6 +2400,10 @@ function initialize( user_options ) {
                         fire_event( image_overlay_container, 'scroll-to-horizontal-middle' );
                         fire_event( image_overlay_container, 'scroll-to-current-image-container' );
                     }, 100 );
+                    
+                    if ( all_image_loaded && ( image_size == 'fit-height' ) ) {
+                        fire_event( image_overlay_container, 'image-fit-height' );
+                    }
                     
                     localStorage[ SCRIPT_NAME + '_saved_image_size' ] = image_size;
                     
