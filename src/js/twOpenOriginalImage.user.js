@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.8
+// @version         0.1.7.9
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -907,6 +907,8 @@ function initialize_download_helper() {
         
     
     link_container_style.position = 'fixed';
+    link_container_style.top = 0;
+    link_container_style.left = 0;
     link_container_style.zIndex = 10000;
     link_container_style.width = '100%';
     //link_container_style.margin = '2px 0 1px 0';
