@@ -2,7 +2,7 @@
 // @name            twOpenOriginalImage
 // @namespace       http://furyu.hatenablog.com/
 // @author          furyu
-// @version         0.1.7.9
+// @version         0.1.7.10
 // @include         http://twitter.com/*
 // @include         https://twitter.com/*
 // @include         https://pbs.twimg.com/media/*
@@ -1276,6 +1276,7 @@ function initialize( user_options ) {
                 button_style.padding = '2px 6px';
                 button_style.color = 'gray';
                 button_style.background = 'white';
+                button_style.fontSize = '13px';
                 
                 if ( OPTIONS.DISPLAY_ALL_IN_ONE_PAGE ) {
                     button.title = escape_html( '[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE + ' / ' + alt_text + '+[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE );
