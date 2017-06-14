@@ -117,8 +117,10 @@ switch ( LANGUAGE ) {
         OPTIONS.TWEET_LINK_TEXT = '元ツイート⤴';
         OPTIONS.CLOSE_TEXT = '☒ 閉じる[Esc]';
         OPTIONS.BUTTON_TEXT = '原寸画像';
+        OPTIONS.COPYBUTTON_TEXT = 'Copy';
         OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = '全ての画像を同一ページで開く';
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = '画像を個別に開く';
+        OPTIONS.BUTTON_HELP_DISPLAY_COPY = 'Copy all links to the clipboard';
         OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = '↓ ダウンロード';
         OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = '原寸画像を開く 【' + SCRIPT_NAME_JA + '】';
         OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_NEXT = '[j]次の画像';
@@ -138,8 +140,10 @@ switch ( LANGUAGE ) {
         OPTIONS.TWEET_LINK_TEXT = 'Tweet';
         OPTIONS.CLOSE_TEXT = 'Close [Esc]';
         OPTIONS.BUTTON_TEXT = 'Original';
+        OPTIONS.COPYBUTTON_TEXT = 'Copy';
         OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE = 'Display all in one page';
         OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE = 'Display one image per page';
+        OPTIONS.BUTTON_HELP_DISPLAY_COPY = 'Copy all links to the clipboard';
         OPTIONS.DOWNLOAD_HELPER_BUTTON_TEXT = 'Download';
         OPTIONS.HELP_KEYPRESS_DISPLAY_IMAGES = 'Display original images (' + SCRIPT_NAME + ')';
         OPTIONS.HELP_OVERLAY_SHORTCUT_MOVE_NEXT = '[j]next';
@@ -1268,30 +1272,65 @@ function initialize( user_options ) {
             button_container_template = ( function () {
                 var button_container_template = d.createElement( 'div' ),
                     button = d.createElement( 'input' ),
+                    copybutton = d.createElement( 'input' ),
                     button_container_style = button_container_template.style,
                     button_style = button.style,
+                    copybutton_style = copybutton.style,
                     alt_text = ( is_mac() ) ? '[option]' : '[Alt]';
                 
                 button.type = 'button';
+                copybutton.type = 'button';
                 button_style.padding = '2px 6px';
                 button_style.color = 'gray';
                 button_style.background = 'white';
                 button_style.fontSize = '13px';
-                
+                button_style.marginRight = '5px';
+                copybutton_style.padding = '2px 6px';
+                copybutton_style.color = 'gray';
+                copybutton_style.background = 'white';
+                copybutton_style.fontSize = '13px';
+
                 if ( OPTIONS.DISPLAY_ALL_IN_ONE_PAGE ) {
                     button.title = escape_html( '[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE + ' / ' + alt_text + '+[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE );
                 }
                 else {
                     button.title = escape_html( '[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ONE_PER_PAGE + ' / ' + alt_text + '+[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_ALL_IN_ONE_PAGE );
                 }
-                
+
                 button.value = escape_html( OPTIONS.BUTTON_TEXT );
+                button.className = 'original';
                 button_container_template.className = 'ProfileTweet-action ' + button_container_classname;
+
+                copybutton.title = escape_html( '[Click]: ' + OPTIONS.BUTTON_HELP_DISPLAY_COPY );
+                copybutton.className = 'copy';
+                copybutton.value = escape_html( OPTIONS.COPYBUTTON_TEXT );
+
                 button_container_template.appendChild( button );
+                button_container_template.appendChild( copybutton );
                 
                 return button_container_template;
             } )(),
-            
+
+            links_container_template = ( function () {
+                var links_container_template = d.createElement( 'div' ),
+                    links_container_style = links_container_template.style,
+                    textarea = d.createElement( 'textarea' ),
+                    textarea_style = textarea.style;
+
+                links_container_style.padding = '15px 5px';
+
+                textarea_style.padding = '2px 6px';
+                textarea_style.color = 'gray';
+                textarea_style.background = 'white';
+                textarea_style.fontSize = '13px';
+                textarea_style.width = '400px';
+                textarea_style.height = '81px';
+
+                links_container_template.appendChild( textarea );
+
+                return links_container_template;
+            } )(),
+
             link_template = ( function () {
                 var link_template = d.createElement( 'a' ),
                     link_style = link_template.style;
@@ -2689,7 +2728,10 @@ function initialize( user_options ) {
             }
             
             var button_container = button_container_template.cloneNode( true ),
-                button = button_container.querySelector( 'input[type="button"]' );
+                links_container = links_container_template.cloneNode( true ),
+                textarea = links_container.querySelector( 'textarea' ),
+                button = button_container.querySelector( 'input[type="button"].original' ),
+                copybutton = button_container.querySelector( 'input[type="button"].copy' );
             
             if ( ! OPTIONS.DISPLAY_ORIGINAL_BUTTONS ) {
                 button_container.style.display = 'none';
@@ -2728,7 +2770,13 @@ function initialize( user_options ) {
                 }
                 return false;
             } );
-            
+
+            add_event( copybutton, 'click', function ( event ) {
+                textarea.select();
+                document.execCommand( 'copy' );
+
+                return false;
+            } );
             
             function insert_button( event ) {
                 if ( action_list.querySelector( '.' + button_container_classname ) ) {
@@ -2747,6 +2795,9 @@ function initialize( user_options ) {
                 }
                 else {
                     action_list.appendChild( button_container );
+                    textarea.value = img_urls.slice( 0 ).join( '\n' );
+                    textarea.style.height = ( ( img_urls.slice( 0 ).length * 20 ) + 1 ) + "px";
+                    action_list.parentNode.appendChild( links_container );
                 }
             } // end of insert_button()
             
