@@ -1323,7 +1323,7 @@ function initialize( user_options ) {
                 textarea_style.color = 'gray';
                 textarea_style.background = 'white';
                 textarea_style.fontSize = '13px';
-                textarea_style.width = '400px';
+                textarea_style.width = '100%';
                 textarea_style.height = '81px';
 
                 links_container_template.appendChild( textarea );
@@ -2772,8 +2772,10 @@ function initialize( user_options ) {
             } );
 
             add_event( copybutton, 'click', function ( event ) {
+                event.stopPropagation();
+
+                console.debug("copy");
                 textarea.select();
-                document.execCommand( 'copy' );
 
                 return false;
             } );
@@ -2784,19 +2786,25 @@ function initialize( user_options ) {
                     return;
                 }
                 button_container.classList.remove( 'removed' );
-                
+
+                textarea.value = img_urls.slice( 0 ).join( '\n' );
+                textarea.style.height = ( ( img_urls.slice( 0 ).length * 20 ) + 1 ) + "px";
+
                 if ( is_tweetdeck() ) {
+                    action_list.innerHTML = '';
                     if ( action_list.tagName == 'FOOTER' && search_ancestor( img_objects[ 0 ], [ 'js-tweet', 'tweet' ] ) ) {
                         action_list.insertBefore( button_container, action_list.firstChild );
                     }
                     else {
                         action_list.appendChild( button_container );
                     }
+                    textarea.style.height = '30px';
+                    textarea.style.padding = '0 0 5px 0';
+                    action_list.insertBefore( links_container, action_list.firstChild );
+                    //action_list.appendChild( links_container );
                 }
                 else {
                     action_list.appendChild( button_container );
-                    textarea.value = img_urls.slice( 0 ).join( '\n' );
-                    textarea.style.height = ( ( img_urls.slice( 0 ).length * 20 ) + 1 ) + "px";
                     action_list.parentNode.appendChild( links_container );
                 }
             } // end of insert_button()
